@@ -1,0 +1,50 @@
+Metadata-Version: 1.1
+Name: pymgal
+Version: 1.0.0
+Summary: A Package for Mock Observations
+Home-page: UNKNOWN
+Author: Weiguang Cui
+Author-email: cuiweiguang@gmail.com
+License: BSD
+Description: # README
+        
+        This README would normally document whatever steps are necessary to get your application up and running.
+        
+        ### What is this repository for?
+        
+        -   This package uses simple stellar synethesis models to generate observed galaxies from hydro-dynamical simulations.
+        -   1.0
+        
+        ### How do I get set up?
+        
+        -   Summary of set up
+        -   Configuration
+        -   Dependencies
+        -   Database configuration
+        -   How to run tests
+        -   Deployment instructions
+        
+        ### Contribution guidelines
+        
+        -   Writing tests
+        -   Code review
+        -   Other guidelines
+        
+        ### Who do I talk to?
+        
+        -   Please report any issue to Weiguang Cui cuiweiguang@gmail.com.
+        -   Or report a bug through issues.
+        
+Keywords: astronomy astrophysics hydro-dynamical simulation mock observation
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Science/Research
+Classifier: Natural Language :: English
+Classifier: Topic :: Scientific/Engineering :: Astronomy
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 3
+Requires: numpy
+Requires: pyfits
+Requires: scipy
+Requires: astropy
