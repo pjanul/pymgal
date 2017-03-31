@@ -357,7 +357,7 @@ class SSP_models(object):
         ----------
         simudata   : Simulation data read from load_data
         dust_func  : dust function.
-        units      : The units of retrun SEDS. Default: 'Fv'
+        units      : The units for retruned SEDS. Default: 'Fv'
 
         Get SEDS for the simulated star particles
 
