@@ -1,3 +1,3 @@
 
 Author for this mock observation code:
-- [Weiguang Cui] (http://site.google.com/cuiweiguang)
+- [Weiguang Cui] (https://sites.google.com/view/cuiweiguang)
