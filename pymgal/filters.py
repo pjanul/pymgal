@@ -4,7 +4,7 @@ import pyfits
 from pymgal import utils
 from scipy.integrate import simps
 from scipy.interpolate import interp1d
-from astropy.cosmology import FlatLambdaCDM
+# from astropy.cosmology import FlatLambdaCDM
 
 
 class filters(object):
@@ -271,7 +271,7 @@ class filters(object):
         if vega:
             to_vega = self.vega_mag
         else:
-            to_vega = np.zeros(len(fn))
+            to_vega = 0.0  # np.zeros(len(fn))
 
         shifted = vs / (1 + simd.z)
         for i in fn:
@@ -293,5 +293,5 @@ class filters(object):
             else:
                 sed_flux = (1 + simd.z) * simps(interp(self.f_vs[i] * (1 + simd.z)).T *
                                                 self.f_tran[i] / self.f_vs[i], self.f_vs[i])
-                mag[i] = -2.5 * np.log10(sed_flux / self.ab_flux[i]) + app + to_vega[i]
+                mag[i] = -2.5 * np.log10(sed_flux / self.ab_flux[i]) + app + to_vega
         return mag
