@@ -186,9 +186,9 @@ class filters(object):
                self.f_vs[fname].max() > self.vega[:, 0].max():
                 raise ValueError(
                     'The filter frequency is out of Vega frequency!')
-            self.vega_mag[fname] = -1.0 * \
-                self.calc_mag(self.vega[:, 0],
-                              self.vega[:, 1], 0, fn=fname)[fname]
+            self.vega_mag[fname] = -1.0 * self._VS_mag(fname, vega=True)
+            # self.calc_mag(self.vega[:, 0],
+            #               self.vega[:, 1], 0, fn=fname)[fname]
             # self.vega_flux = self.ab_source_flux / 10.0**(-0.4 * self.vega_mag)
 
         # calculate solar magnitude if solar spectrum was passed
@@ -198,8 +198,24 @@ class filters(object):
                self.f_vs[fname].max() > self.solar[:, 0].max():
                 raise ValueError(
                     'The filter frequency is out of Solar frequency!')
-            self.solar_mag[fname] = self.calc_mag(
-                self.solar[:, 0], self.solar[:, 1], 0, fn=fname)[fname]
+            self.solar_mag[fname] = self._VS_mag(fname)
+            # self.calc_mag(self.solar[:, 0], self.solar[:, 1], 0, fn=fname)[fname]
+
+    ##############
+    #  calc vega solar mag  #
+    ##############
+    def _VS_mag(self, fn, vega=False):
+        r""" Default calculate solar mag"""
+
+        if vega:
+            vs = self.vega[:, 0]
+            se = self.vega[:, 1]
+        else:
+            vs = self.solar[:, 0]
+            se = self.solar[:, 1]
+        interp = interp1d(vs, se, axis=0)
+        sed_flux = simps(interp(self.f_vs[fn]).T * self.f_tran[fn] / self.f_vs[fn], self.f_vs[fn])
+        return -2.5 * np.log10(sed_flux / self.ab_flux[fn])
 
     ##############
     #  calc mag  #
