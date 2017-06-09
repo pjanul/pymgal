@@ -204,19 +204,25 @@ class filters(object):
     ##############
     #  calc mag  #
     ##############
-    def calc_mag(self, vs, sed, z, fn=None, apparent=False, vega=False, cosmology=None):
+    def calc_mag(self, sspmod, simd, fn=None, dust_func=None, apparent=False, vega=False, flux=False):
         r"""
         mag = ezsps.astro_filter.calc_mag(vs, sed, z, fn=None)
 
-        :param vs: List of sed frequencies. list, array
-        :param sed: The SED, with units of ergs/s/cm^2/Hz. list, array
-        :param z: The redshift to redshift the SED to. int, float.
+        sspmod      : loaded ssp models.
+        simd        : loaded simulation data from load_data
+        #
+        # :param vs: List of sed frequencies. list, array
+        # :param sed: The SED, with units of ergs/s/cm^2/Hz. list, array
+        # :param z: The redshift to redshift the SED to. int, float.
         :param fn: the name of filter/s. string, list of strings,
                    or None (default, all loaded filters will be included in the calculation)
         :param apparent, if you need apparent magnitude, default False
-        :param cosmology, if not specified, assume LCDM with WMAP7 parameter.
-        :returns: Absolute AB magnitude Outputs vega mags if vega=True
-        :rtype: float
+        # :param cosmology, if not specified, assume LCDM with WMAP7 parameter.
+        :returns:   0. Absolute AB magnitude Default
+                    1. apparent magnitude if apparent=True
+                    2. Absolute AB magnitude Outputs vega mags if vega=True
+                    3. flux, if flux=True
+        :rtype: array or list of array
 
         :Example:
 
@@ -236,27 +242,24 @@ class filters(object):
             else:
                 if not isinstance(fn, type([])):
                     raise ValueError("Incorrected filter name ! ", fn)
-        if cosmology is None:
-            cosmo = FlatLambdaCDM(70.4, 0.272)  # H0, Om
-        else:
-            cosmo = cosmology
 
         if apparent:
-            app = 5. * np.log10(cosmo.luminosity_distance(z).value
-                                * 1.0e5) if z > 0 else -np.inf
+            app = 5. * np.log10(simd.cosmology.luminosity_distance(simd.z).value
+                                * 1.0e5) if simd.z > 0 else -np.inf
         else:
             app = 0.0
 
+        vs = sspmod.vs[sspmod.met_name[0]]
         mag = {}
 
         if vega:
             to_vega = self.vega_mag
         else:
             to_vega = np.zeros(len(fn))
-        shifted = vs / (1 + z)
+
+        shifted = vs / (1 + simd.z)
         for i in fn:
-            c = ((shifted > self.f_vs[i].min()) & (
-                shifted < self.f_vs[i].max())).sum()
+            c = ((shifted > self.f_vs[i].min()) & (shifted < self.f_vs[i].max())).sum()
             if c < 3:
                 print("Warning, wavelength range from SSP models is too near filter,",
                       " magnitude is assigned nan")
@@ -267,9 +270,12 @@ class filters(object):
                       " magnitude is assigned nan")
                 mag[i] = np.nan
 
-            interp = interp1d(vs, sed, axis=0)
-            sed_flux = (1 + z) * simps(interp(self.f_vs[i] * (
-                1 + z)).T * self.f_tran[i] / self.f_vs[i], self.f_vs[i])
-            mag[i] = -2.5 * \
-                np.log10(sed_flux / self.ab_flux[i]) + app + to_vega
+            interp = interp1d(vs, sspmod.get_seds(simd, dust_func=dust_func), axis=0)
+            if flux:
+                mag[i] = (1 + simd.z) * simps(interp(self.f_vs[i] * (1 + simd.z)).T *
+                                              self.f_tran[i] / self.f_vs[i], self.f_vs[i])
+            else:
+                sed_flux = (1 + simd.z) * simps(interp(self.f_vs[i] * (1 + simd.z)).T *
+                                                self.f_tran[i] / self.f_vs[i], self.f_vs[i])
+                mag[i] = -2.5 * np.log10(sed_flux / self.ab_flux[i]) + app + to_vega[i]
         return mag
