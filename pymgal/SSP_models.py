@@ -7,8 +7,6 @@ from scipy.interpolate import interp1d
 # import astro_filter_light
 import numpy as np
 import pyfits
-# scipy must >= 0.17 to properly use this!
-from scipy.stats import binned_statistic_2d
 
 
 class SSP_models(object):
