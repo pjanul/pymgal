@@ -268,13 +268,13 @@ class filters(object):
         vs = sspmod.vs[sspmod.met_name[0]]
         mag = {}
 
-        if vega:
-            to_vega = self.vega_mag
-        else:
-            to_vega = 0.0  # np.zeros(len(fn))
-
         shifted = vs / (1 + simd.z)
         for i in fn:
+            if vega:
+                to_vega = self.vega_mag[i]
+            else:
+                to_vega = 0.0
+
             c = ((shifted > self.f_vs[i].min()) & (shifted < self.f_vs[i].max())).sum()
             if c < 3:
                 print("Warning, wavelength range from SSP models is too near filter,",
