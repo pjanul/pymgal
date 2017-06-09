@@ -51,26 +51,28 @@ class load_data(object):
         self.currenta = 1.0  # z = 0
         self.z = 0.0
         self.Uage = 0.0  # university age in Gyrs
+        self.center = center
+        self.radius = radius
         self.nx = self.grid_mass = self.grid_age = self.grid_metal = None
 
         if snapshot:
-            self._load_snap(snapname, center, radius)
+            self._load_snap(snapname)
         elif yt_data is not None:
-            self._load_yt(yt_data, center, radius)
+            self._load_yt(yt_data)
         elif datafile is not None:
-            self._load_raw(datafile, center, radius)
+            self._load_raw(datafile)
 
-    def _load_snap(self, filename, cc, rr):
+    def _load_snap(self, filename):
         head = readsnapsgl(filename, "HEAD", quiet=True)
         self.cosmology = FlatLambdaCDM(head[-1] * 100, head[-3])
         self.currenta = head[2]
         self.Uage = self.cosmology.age(1. / self.currenta - 1)
         self.z = head[3] if head[3] > 0 else 0.0
         spos = readsnapsgl(filename, "POS ", ptype=4, quiet=True)
-        if (cc is not None) and (rr is not None):
-            r = np.sqrt(np.sum((spos - cc)**2, axis=1))
-            ids = r <= rr
-            self.S_pos = spos[ids] - cc
+        if (self.center is not None) and (self.radius is not None):
+            r = np.sqrt(np.sum((spos - self.center)**2, axis=1))
+            ids = r <= self.radius
+            self.S_pos = spos[ids] - self.center
         else:
             ids = np.ones(head[0][4], dtype=bool)
             self.S_pos = spos - np.mean(spos, axis=0)
@@ -81,15 +83,15 @@ class load_data(object):
             ids] * 1.0e10 / head[-1]  # in M_sun
         self.S_metal = readsnapsgl(filename, "Z   ", ptype=4, quiet=True)[ids]
 
-    def _load_yt(self, yt, cc, rr):
+    def _load_yt(self, yt):
         # Need to be done soon
         sp = yt.sperical(yt)
         return(sp)
 
-    def _load_raw(self, datafile, cc, rr):
-        if (cc is not None) and (rr is not None):
-            r = np.sqrt(np.sum((datafile['pos'] - cc)**2, axis=1))
-            ids = r <= rr
+    def _load_raw(self, datafile):
+        if (self.center is not None) and (self.radius is not None):
+            r = np.sqrt(np.sum((datafile['pos'] - self.center)**2, axis=1))
+            ids = r <= self.radius
         else:
             ids = np.ones(datafile['age'].size, dtype=bool)
         self.S_age = datafile['age'][ids]
