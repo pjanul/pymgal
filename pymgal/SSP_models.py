@@ -397,11 +397,11 @@ class SSP_models(object):
                 seds[:, ids] = f(simdata.S_age[ids]) * simdata.S_mass[ids] * \
                     dust_func(simdata.S_age[ids], self.ls[metmodel])
 
-        if simdata.grid_mass is not None:
-            seds = binned_statistic_2d(simdata.S_pos[:, 0], simdata.S_pos[:, 1],
-                                       values=seds,
-                                       bins=[simdata.nx, simdata.nx],
-                                       statistic='sum')[0]
+        # if simdata.grid_mass is not None:
+        #     seds = binned_statistic_2d(simdata.S_pos[:, 0], simdata.S_pos[:, 1],
+        #                                values=seds,
+        #                                bins=[simdata.nx, simdata.nx],
+        #                                statistic='sum')[0]
 
         units = units.lower()
         if units == 'jy':
