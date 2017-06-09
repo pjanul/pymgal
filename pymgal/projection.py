@@ -1,7 +1,6 @@
 import numpy as np
 # scipy must >= 0.17 to properly use this!
 # from scipy.stats import binned_statistic_2d
-import pyfits as pf
 
 
 class projection(object):
@@ -49,6 +48,8 @@ class projection(object):
         self.medpos = []
         self.nx = 0
         self.ny = 0
+        self.cc = simd.center
+        self.rr = simd.radius
 
         if not flux:
             if isinstance(data, type(np.zeros(1))):
@@ -162,59 +163,43 @@ class projection(object):
         clobber : boolean, optional
             Set to True to overwrite a previous file.
         """
+        import pyfits as pf
+
         if fname[:-5] != ".fits":
             fname = fname + ".fits"
 
         if isinstance(self.outd, type(np.zeros(1))):
             hdu = pf.PrimaryHDU(self.outd.T)
-            hdu.header["SIMPLE"] = "T"
-            hdu.header["BITPIX"] = 8
-            hdu.header["NAXIS"] = 2
-            hdu.header["EXTEND"] = "T"
-            hdu.header["MFORM1"] = "RA,DEC"
-            hdu.header["CTYPE1"] = "RA---TAN"
-            hdu.header["CTYPE2"] = "DEC--TAN"
-            hdu.header["CRPIX1"] = self.nx
-            hdu.header["CRPIX2"] = self.ny
-            hdu.header["CRVAL1"] = float(self.medpos[0])
-            hdu.header["CRVAL2"] = float(self.medpos[1])
-            hdu.header["CUNIT1"] = "kpc/h"
-            hdu.header["CUNIT2"] = "kpc/h"
+            hdu.header["RCVAL1"] = float(self.medpos[0])
+            hdu.header["RCVAL2"] = float(self.medpos[1])
+            hdu.header["UNITS"] = "kpc/h"
+            hdu.header["OCVAL1"] = float(self.cc[0])
+            hdu.header["OCVAL2"] = float(self.cc[1])
+            hdu.header["ORAD"] = float(self.rr)
+            hdu.header["REDSHIFT"] = float(self.z)
             hdu.header["NOTE"] = ""
             hdu.writeto(fname, clobber=clobber)
         elif isinstance(self.outd, type([])):
             for i in len(self.outd):
                 hdu = pf.PrimaryHDU(self.outd[i].T)
-                hdu.header["SIMPLE"] = "T"
-                hdu.header["BITPIX"] = 8
-                hdu.header["NAXIS"] = 2
-                hdu.header["EXTEND"] = "T"
-                hdu.header["MFORM1"] = "RA,DEC"
-                hdu.header["CTYPE1"] = "RA---TAN"
-                hdu.header["CTYPE2"] = "DEC--TAN"
-                hdu.header["CRPIX1"] = self.nx
-                hdu.header["CRPIX2"] = self.ny
-                hdu.header["CRVAL1"] = float(self.medpos[0])
-                hdu.header["CRVAL2"] = float(self.medpos[1])
-                hdu.header["CUNIT1"] = "kpc/h"
-                hdu.header["CUNIT2"] = "kpc/h"
+                hdu.header["RCVAL1"] = float(self.medpos[0])
+                hdu.header["RCVAL2"] = float(self.medpos[1])
+                hdu.header["UNITS"] = "kpc/h"
+                hdu.header["OCVAL1"] = float(self.cc[0])
+                hdu.header["OCVAL2"] = float(self.cc[1])
+                hdu.header["ORAD"] = float(self.rr)
+                hdu.header["REDSHIFT"] = float(self.z)
                 hdu.header["NOTE"] = ""
                 hdu.writeto(fname[:-5]+"-"+str(i)+fname[-5:], clobber=clobber)
         elif isinstance(self.outd, type({})):
             for i in self.outd.keys():
                 hdu = pf.PrimaryHDU(self.outd[i].T)
-                hdu.header["SIMPLE"] = "T"
-                hdu.header["BITPIX"] = 8
-                hdu.header["NAXIS"] = 2
-                hdu.header["EXTEND"] = "T"
-                hdu.header["MFORM1"] = "RA,DEC"
-                hdu.header["CTYPE1"] = "RA---TAN"
-                hdu.header["CTYPE2"] = "DEC--TAN"
-                hdu.header["CRPIX1"] = self.nx
-                hdu.header["CRPIX2"] = self.ny
-                hdu.header["CRVAL1"] = float(self.medpos[0])
-                hdu.header["CRVAL2"] = float(self.medpos[1])
-                hdu.header["CUNIT1"] = "kpc/h"
-                hdu.header["CUNIT2"] = "kpc/h"
+                hdu.header["RCVAL1"] = float(self.medpos[0])
+                hdu.header["RCVAL2"] = float(self.medpos[1])
+                hdu.header["UNITS"] = "kpc/h"
+                hdu.header["OCVAL1"] = float(self.cc[0])
+                hdu.header["OCVAL2"] = float(self.cc[1])
+                hdu.header["ORAD"] = float(self.rr)
+                hdu.header["REDSHIFT"] = float(self.z)
                 hdu.header["NOTE"] = ""
                 hdu.writeto(fname[:-5]+"-"+i+fname[-5:], clobber=clobber)
