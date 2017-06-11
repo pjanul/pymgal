@@ -114,7 +114,7 @@ class projection(object):
         else:
             if self.z <= 0.0:
                 self.z = 0.01
-            pixelsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
+            pixelsize = self.ar * s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
             minx = self.medpos[0] - self.npx * pixelsize / 2
             maxx = self.medpos[0] + self.npx * pixelsize / 2
             miny = self.medpos[1] - self.npx * pixelsize / 2
@@ -128,7 +128,8 @@ class projection(object):
             self.outd = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d)[0]
         elif isinstance(d, type([])):
             for i in len(d):
-                self.outd.append(np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0])
+                self.outd.append(np.histogram2d(pos[:, 0], pos[:, 1],
+                                 bins=[xx, yy], weights=d[i])[0])
         elif isinstance(d, type({})):
             for i in d.keys():
                 self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0]
