@@ -32,7 +32,6 @@ class projection(object):
     Example
     -------
 
-
     """
 
     def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, flux=False):
@@ -74,7 +73,6 @@ class projection(object):
     def _prep_out(self, d, s):
         r""" rotate the data points and project them into a 2D grid.
         """
-        # self.nx = nx
         # ratation data points first
 
         if isinstance(self.axis, type('')):
@@ -116,7 +114,7 @@ class projection(object):
         else:
             if self.z <= 0.0:
                 self.z = 0.01
-            pixelsize = s.cosmology.arcsec_per_kpc_proper(self.z) * self.ar * s.cosmology.h
+            pixelsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
             minx = self.medpos[0] - self.npx * pixelsize / 2
             maxx = self.medpos[0] + self.npx * pixelsize / 2
             miny = self.medpos[1] - self.npx * pixelsize / 2
@@ -134,7 +132,6 @@ class projection(object):
         elif isinstance(d, type({})):
             for i in d.keys():
                 self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0]
-
         # Now grid the data
         # pmax, pmin = np.max(self.S_pos, axis=0), np.min(self.S_pos, axis=0)
         # grid_x, grid_y = np.mgrid[pmin[0]:pmax[0]:nx, pmin[1]:pmax[1]:nx]
