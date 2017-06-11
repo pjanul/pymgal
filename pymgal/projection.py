@@ -47,6 +47,7 @@ class projection(object):
         self.medpos = []
         self.nx = 0
         self.ny = 0
+        self.pxsize = 0.
         self.cc = simd.center
         self.rr = simd.radius
 
@@ -110,19 +111,19 @@ class projection(object):
         maxy = pos[:, 1].max()
         self.medpos = np.median(pos, axis=0)
         if self.ar is None:
-            pixelsize = np.min([maxx - minx, maxy - miny]) / self.npx
+            self.pxsize = np.min([maxx - minx, maxy - miny]) / self.npx
         else:
             if self.z <= 0.0:
                 self.z = 0.01
-            pixelsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
-            minx = self.medpos[0] - self.npx * pixelsize / 2
-            maxx = self.medpos[0] + self.npx * pixelsize / 2
-            miny = self.medpos[1] - self.npx * pixelsize / 2
-            maxy = self.medpos[1] + self.npx * pixelsize / 2
+            self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
+            minx = self.medpos[0] - self.npx * self.pxsize / 2
+            maxx = self.medpos[0] + self.npx * self.pxsize / 2
+            miny = self.medpos[1] - self.npx * self.pxsize / 2
+            maxy = self.medpos[1] + self.npx * self.pxsize / 2
 
-        xx = np.arange(minx, maxx, pixelsize)
+        xx = np.arange(minx, maxx, self.pxsize)
         self.nx = xx.size
-        yy = np.arange(miny, maxy, pixelsize)
+        yy = np.arange(miny, maxy, self.pxsize)
         self.ny = yy.size
         if isinstance(d, type(np.zeros(1))):
             self.outd = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d)[0]
@@ -176,6 +177,7 @@ class projection(object):
             hdu.header["OCVAL2"] = float(self.cc[1])
             hdu.header["ORAD"] = float(self.rr)
             hdu.header["REDSHIFT"] = float(self.z)
+            hdu.header["PSIZE"] = float(self.pxsize)
             hdu.header["NOTE"] = ""
             hdu.writeto(fname, clobber=clobber)
         elif isinstance(self.outd, type([])):
@@ -188,6 +190,7 @@ class projection(object):
                 hdu.header["OCVAL2"] = float(self.cc[1])
                 hdu.header["ORAD"] = float(self.rr)
                 hdu.header["REDSHIFT"] = float(self.z)
+                hdu.header["PSIZE"] = float(self.pxsize)
                 hdu.header["NOTE"] = ""
                 hdu.writeto(fname[:-5]+"-"+str(i)+fname[-5:], clobber=clobber)
         elif isinstance(self.outd, type({})):
@@ -200,5 +203,6 @@ class projection(object):
                 hdu.header["OCVAL2"] = float(self.cc[1])
                 hdu.header["ORAD"] = float(self.rr)
                 hdu.header["REDSHIFT"] = float(self.z)
+                hdu.header["PSIZE"] = float(self.pxsize)
                 hdu.header["NOTE"] = ""
                 hdu.writeto(fname[:-5]+"-"+i+fname[-5:], clobber=clobber)
