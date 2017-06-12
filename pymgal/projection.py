@@ -10,7 +10,8 @@ class projection(object):
 
     Parameters
     ----------
-    wdata   : The data to be saved. Type: array or list of array.
+    wdata   : The data to be saved. Type: dictionary of array.
+                It is coming from the outputs of filters.calc_mag.
                 The array must be the same length of simulation data or npx x npx.
     simd    : The loaded simulation data from load_data function.
     axis    : can be 'x', 'y', 'z', or a list of degrees [alpha, beta, gamma],
@@ -24,17 +25,26 @@ class projection(object):
     redshift: The redshift of the object at. Default: None.
                 If None, redshift from simulation data will be used.
                 Maybe move to 0.01 if it is 0.
-
+    flux    : is the input wdata in luminosity/flux? Default: False, assume in ab mag.
+                Set this to true if particles' luminosity are given in wdata.
+    outmas  : do you want to out put stellar mass? Default: False.
+                If True, the stellar mass in each pixel are saved.
+    outage  : do you want to out put stellar age (mass weighted)? Default: False.
+                If True, the stellar age in each pixel are saved.
+    outmet  : do you want to out put stellar metallicity (mass weighted)? Default: False.
+                If True, the stellar metallicity in each pixel are saved.
     Notes
     -----
 
 
     Example
     -------
-
+    Pdata = pymgal.projection(part_lum, simu_data, npx=1024, flux=Ture)
+    Pdata.write_fits_image("filename.fits")
     """
 
-    def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, flux=False):
+    def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None,
+                 flux=False, outmas=False, outage=False, outmet=False):
 
         self.axis = axis
         self.npx = npx
@@ -49,17 +59,12 @@ class projection(object):
         self.pxsize = 0.
         self.cc = simd.center
         self.rr = simd.radius
+        self.omas = outmas
+        self.oage = outage
+        self.omet = outmet
 
         if not flux:
-            if isinstance(data, type(np.zeros(1))):
-                data = 10**(data/-2.5)
-                self.outd = np.zeros((npx, npx), dtype=float)
-            elif isinstance(data, type([])):
-                self.outd = []
-                for i in len(data):
-                    data[i] = 10**(data[i]/-2.5)
-                    # self.outd.append(np.zeros((npx, npx), dtype=float))
-            elif isinstance(data, type({})):
+            if isinstance(data, type({})):
                 self.outd = {}
                 for i in data.keys():
                     data[i] = 10**(data[i]/-2.5)
@@ -122,32 +127,23 @@ class projection(object):
         self.nx = xx.size
         yy = np.arange(miny, maxy, self.pxsize)
         self.ny = yy.size
-        if isinstance(d, type(np.zeros(1))):
-            self.outd = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d)[0]
-        elif isinstance(d, type([])):
-            for i in len(d):
-                self.outd.append(np.histogram2d(pos[:, 0], pos[:, 1],
-                                 bins=[xx, yy], weights=d[i])[0])
-        elif isinstance(d, type({})):
-            for i in d.keys():
-                self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0]
+
+        for i in d.keys():
+            self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0]
 
         # Now grid the data
         # pmax, pmin = np.max(self.S_pos, axis=0), np.min(self.S_pos, axis=0)
         # grid_x, grid_y = np.mgrid[pmin[0]:pmax[0]:nx, pmin[1]:pmax[1]:nx]
-        # self.grid_mass = np.histogram2d(self.S_pos[:, 0], self.S_pos[:, 1], bins=[
-        #                                 nx, nx], weights=self.S_mass)[0]
-        # ids = self.grid_mass > 0
-        # self.grid_age = np.histogram2d(self.S_pos[:, 0], self.S_pos[:, 1], bins=[
-        #                                nx, nx], weights=self.S_age * self.S_mass)[0]
-        # self.grid_age[ids] /= self.grid_mass[ids]  # mass weighted age
-        # self.grid_metal = np.histogram2d(self.S_pos[:, 0], self.S_pos[:, 1], bins=[
-        #                                  nx, nx], weights=self.S_metal * self.S_mass)[0]
-        # self.grid_metal[ids] /= self.grid_mass[ids]  # mass weighted metal
-        # dx = (pmax[0] - pmin[0] + pmax[0] * 0.001) / nx
-        # dy = (pmax[1] - pmin[1] + pmax[1] * 0.001) / nx
-        # self.grids = np.int32(
-        #     np.floor((self.S_pos[:, :2] - pmin[:2]) / np.array([dx, dy])))
+        if self.omas or self.oage or self.omet:
+            self.outd["Mass"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass)[0]
+        if self.oage:
+            ids = self.outd["Mass"] > 0
+            self.outd["Age"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass * s.S_age)[0]
+            self.outd["Age"][ids] /= self.outd["Mass"][ids]
+        if self.omet:
+            ids = self.outd["Mass"] > 0
+            self.outd["Metal"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass * s.S_age)[0]
+            self.outd["Metal"][ids] /= self.outd["Mass"][ids]
 
     def write_fits_image(self, fname, clobber=False):
         r"""
@@ -165,8 +161,8 @@ class projection(object):
         if fname[:-5] != ".fits":
             fname = fname + ".fits"
 
-        if isinstance(self.outd, type(np.zeros(1))):
-            hdu = pf.PrimaryHDU(self.outd.T)
+        for i in self.outd.keys():
+            hdu = pf.PrimaryHDU(self.outd[i].T)
             hdu.header["RCVAL1"] = float(self.cc[0])
             hdu.header["RCVAL2"] = float(self.cc[1])
             hdu.header["UNITS"] = "kpc/h"
@@ -174,26 +170,4 @@ class projection(object):
             hdu.header["REDSHIFT"] = float(self.z)
             hdu.header["PSIZE"] = float(self.pxsize)
             hdu.header["NOTE"] = ""
-            hdu.writeto(fname, clobber=clobber)
-        elif isinstance(self.outd, type([])):
-            for i in len(self.outd):
-                hdu = pf.PrimaryHDU(self.outd[i].T)
-                hdu.header["RCVAL1"] = float(self.cc[0])
-                hdu.header["RCVAL2"] = float(self.cc[1])
-                hdu.header["UNITS"] = "kpc/h"
-                hdu.header["ORAD"] = float(self.rr)
-                hdu.header["REDSHIFT"] = float(self.z)
-                hdu.header["PSIZE"] = float(self.pxsize)
-                hdu.header["NOTE"] = ""
-                hdu.writeto(fname[:-5]+"-"+str(i)+fname[-5:], clobber=clobber)
-        elif isinstance(self.outd, type({})):
-            for i in self.outd.keys():
-                hdu = pf.PrimaryHDU(self.outd[i].T)
-                hdu.header["RCVAL1"] = float(self.cc[0])
-                hdu.header["RCVAL2"] = float(self.cc[1])
-                hdu.header["UNITS"] = "kpc/h"
-                hdu.header["ORAD"] = float(self.rr)
-                hdu.header["REDSHIFT"] = float(self.z)
-                hdu.header["PSIZE"] = float(self.pxsize)
-                hdu.header["NOTE"] = ""
-                hdu.writeto(fname[:-5]+"-"+i+fname[-5:], clobber=clobber)
+            hdu.writeto(fname[:-5]+"-"+i+fname[-5:], clobber=clobber)
