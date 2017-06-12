@@ -289,7 +289,8 @@ class filters(object):
             interp = interp1d(vs, sspmod.get_seds(simd, dust_func=dust_func), axis=0)
             if flux:
                 mag[i] = (1 + simd.z) * simps(interp(self.f_vs[i] * (1 + simd.z)).T *
-                                              self.f_tran[i] / self.f_vs[i], self.f_vs[i])
+                                              self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]
+
             else:
                 sed_flux = (1 + simd.z) * simps(interp(self.f_vs[i] * (1 + simd.z)).T *
                                                 self.f_tran[i] / self.f_vs[i], self.f_vs[i])
