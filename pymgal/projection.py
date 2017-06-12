@@ -67,8 +67,7 @@ class projection(object):
             else:
                 raise ValueError("Do not accept this data type %s " % type(data))
 
-        if len(data) != npx**2:
-            self._prep_out(data, simd)
+        self._prep_out(data, simd)
 
     def _prep_out(self, d, s):
         r""" rotate the data points and project them into a 2D grid.
