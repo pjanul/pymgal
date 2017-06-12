@@ -59,18 +59,19 @@ class projection(object):
         self.pxsize = 0.
         self.cc = simd.center
         self.rr = simd.radius
+        self.flux = flux
         self.omas = outmas
         self.oage = outage
         self.omet = outmet
 
-        if not flux:
-            if isinstance(data, type({})):
-                self.outd = {}
-                for i in data.keys():
-                    data[i] = 10**(data[i]/-2.5)
-                    # self.outd[i] = np.zeros((npx, npx), dtype=float)
-            else:
-                raise ValueError("Do not accept this data type %s " % type(data))
+        # if not flux:
+        #     if isinstance(data, type({})):
+        #         self.outd = {}
+        #         for i in data.keys():
+        #             data[i] = 10**(data[i]/-2.5)
+        #             # self.outd[i] = np.zeros((npx, npx), dtype=float)
+        #     else:
+        #         raise ValueError("Do not accept this data type %s " % type(data))
 
         self._prep_out(data, simd)
 
@@ -129,7 +130,11 @@ class projection(object):
         self.ny = yy.size
 
         for i in d.keys():
-            self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0]
+            if self.flux:  # luminosity
+                self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0]
+            else:  # ab mag
+                self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1],
+                                              bins=[xx, yy], weights=10**(d[i]/-2.5))[0]
 
         # Now grid the data
         # pmax, pmin = np.max(self.S_pos, axis=0), np.min(self.S_pos, axis=0)
