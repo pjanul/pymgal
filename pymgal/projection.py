@@ -44,7 +44,6 @@ class projection(object):
         else:
             self.z = redshift
         self.flux = flux
-        self.medpos = []
         self.nx = 0
         self.ny = 0
         self.pxsize = 0.
@@ -109,17 +108,16 @@ class projection(object):
         maxx = pos[:, 0].max()
         miny = pos[:, 1].min()
         maxy = pos[:, 1].max()
-        self.medpos = np.median(pos, axis=0)
         if self.ar is None:
             self.pxsize = np.min([maxx - minx, maxy - miny]) / self.npx
         else:
             if self.z <= 0.0:
                 self.z = 0.01
             self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
-            minx = self.medpos[0] - self.npx * self.pxsize / 2
-            maxx = self.medpos[0] + self.npx * self.pxsize / 2
-            miny = self.medpos[1] - self.npx * self.pxsize / 2
-            maxy = self.medpos[1] + self.npx * self.pxsize / 2
+            minx = -self.npx * self.pxsize / 2
+            maxx = +self.npx * self.pxsize / 2
+            miny = -self.npx * self.pxsize / 2
+            maxy = +self.npx * self.pxsize / 2
 
         xx = np.arange(minx, maxx, self.pxsize)
         self.nx = xx.size
@@ -170,11 +168,9 @@ class projection(object):
 
         if isinstance(self.outd, type(np.zeros(1))):
             hdu = pf.PrimaryHDU(self.outd.T)
-            hdu.header["RCVAL1"] = float(self.medpos[0])
-            hdu.header["RCVAL2"] = float(self.medpos[1])
+            hdu.header["RCVAL1"] = float(self.cc[0])
+            hdu.header["RCVAL2"] = float(self.cc[1])
             hdu.header["UNITS"] = "kpc/h"
-            hdu.header["OCVAL1"] = float(self.cc[0])
-            hdu.header["OCVAL2"] = float(self.cc[1])
             hdu.header["ORAD"] = float(self.rr)
             hdu.header["REDSHIFT"] = float(self.z)
             hdu.header["PSIZE"] = float(self.pxsize)
@@ -183,11 +179,9 @@ class projection(object):
         elif isinstance(self.outd, type([])):
             for i in len(self.outd):
                 hdu = pf.PrimaryHDU(self.outd[i].T)
-                hdu.header["RCVAL1"] = float(self.medpos[0])
-                hdu.header["RCVAL2"] = float(self.medpos[1])
+                hdu.header["RCVAL1"] = float(self.cc[0])
+                hdu.header["RCVAL2"] = float(self.cc[1])
                 hdu.header["UNITS"] = "kpc/h"
-                hdu.header["OCVAL1"] = float(self.cc[0])
-                hdu.header["OCVAL2"] = float(self.cc[1])
                 hdu.header["ORAD"] = float(self.rr)
                 hdu.header["REDSHIFT"] = float(self.z)
                 hdu.header["PSIZE"] = float(self.pxsize)
@@ -196,11 +190,9 @@ class projection(object):
         elif isinstance(self.outd, type({})):
             for i in self.outd.keys():
                 hdu = pf.PrimaryHDU(self.outd[i].T)
-                hdu.header["RCVAL1"] = float(self.medpos[0])
-                hdu.header["RCVAL2"] = float(self.medpos[1])
+                hdu.header["RCVAL1"] = float(self.cc[0])
+                hdu.header["RCVAL2"] = float(self.cc[1])
                 hdu.header["UNITS"] = "kpc/h"
-                hdu.header["OCVAL1"] = float(self.cc[0])
-                hdu.header["OCVAL2"] = float(self.cc[1])
                 hdu.header["ORAD"] = float(self.rr)
                 hdu.header["REDSHIFT"] = float(self.z)
                 hdu.header["PSIZE"] = float(self.pxsize)
