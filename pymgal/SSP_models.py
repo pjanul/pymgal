@@ -33,6 +33,7 @@ class SSP_models(object):
     has_masses : Does it have mass? Default: False
     units      : The units of wavelength. Default: 'a'
     age_units  : The units of age. Default: 'gyrs'
+                Note, this is the age units in the model file. It is changed into yrs in side the code.
 
     nsample    : The frequency sample points. Default: None, uses the model
                  frequences. Otherwise, the interpolated frequency will be used.
