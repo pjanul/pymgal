@@ -63,6 +63,7 @@ class projection(object):
         self.omas = outmas
         self.oage = outage
         self.omet = outmet
+        self.outd = {}
 
         # if not flux:
         #     if isinstance(data, type({})):
