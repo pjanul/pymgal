@@ -164,7 +164,7 @@ class projection(object):
         """
         import pyfits as pf
 
-        if fname[:-5] != ".fits":
+        if fname[-5:] != ".fits":
             fname = fname + ".fits"
 
         for i in self.outd.keys():
