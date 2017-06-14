@@ -148,7 +148,7 @@ class projection(object):
             self.outd["Age"][ids] /= self.outd["Mass"][ids]
         if self.omet:
             ids = self.outd["Mass"] > 0
-            self.outd["Metal"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass * s.S_age)[0]
+            self.outd["Metal"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass * s.S_metal)[0]
             self.outd["Metal"][ids] /= self.outd["Mass"][ids]
 
     def write_fits_image(self, fname, clobber=False):
