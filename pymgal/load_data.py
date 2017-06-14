@@ -76,7 +76,7 @@ class load_data(object):
         else:
             ids = np.ones(head[0][4], dtype=bool)
             self.S_pos = spos - np.mean(spos, axis=0)
-        age = readsnapsgl(filename, "AGE ", ptype=4, quiet=True)[ids]
+        age = readsnapsgl(filename, "AGE ", quiet=True)[:head[0][4]][ids]
         age = self.Uage - self.cosmology.age(1. / age - 1)
         self.S_age = age.value * 1.0e9  # in yrs
         self.S_mass = readsnapsgl(filename, "MASS", ptype=4, quiet=True)[
