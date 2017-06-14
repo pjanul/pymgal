@@ -81,7 +81,11 @@ class load_data(object):
         self.S_age = age.value * 1.0e9  # in yrs
         self.S_mass = readsnapsgl(filename, "MASS", ptype=4, quiet=True)[
             ids] * 1.0e10 / head[-1]  # in M_sun
-        self.S_metal = readsnapsgl(filename, "Z   ", ptype=4, quiet=True)[ids]
+        self.S_metal = readsnapsgl(filename, "Z   ", ptype=4, quiet=True)
+        if self.S_metal == 0:
+            self.S_metal = readsnapsgl(filename, "ZTOT", ptype=4, quiet=True)[ids]
+        else:
+            self.S_metal = self.S_metal[ids]
 
     def _load_yt(self, yt):
         # Need to be done soon
