@@ -155,7 +155,7 @@ class SSP_models(object):
                 for i, mn in enumerate(self.met_name):
                     newfreq = np.arange(self.vs[mn].min(), self.vs[mn].max(
                     ), (self.vs[mn].max() - self.vs[mn].min() * 0.999) / self.defined_freq)
-                    f = interp1d(self.vs[mn], self.seds[mn].T)
+                    f = interp1d(self.vs[mn], self.seds[mn].T, bounds_error=False, fill_value="extrapolate")
                     self.seds[mn] = f(newfreq).T
                     self.vs[mn] = newfreq
                     self.nvs[i] = self.nls[i] = self.defined_freq
@@ -163,7 +163,7 @@ class SSP_models(object):
             elif isinstance(self.defined_freq, type([])) or isinstance(self.defined_freq, type(np.ones(1))):
                 newfreq = np.asarray(self.defined_freq)
                 for i, mn in enumerate(self.met_name):
-                    f = interp1d(self.vs[mn], self.seds[mn].T)
+                    f = interp1d(self.vs[mn], self.seds[mn].T, bounds_error=False, fill_value="extrapolate")
                     self.seds[mn] = f(newfreq).T
                     self.vs[mn] = newfreq
                     self.nvs[i] = self.nls[i] = len(newfreq)
@@ -383,7 +383,7 @@ class SSP_models(object):
             mids = np.int32(np.round(mids))
 
         for i, metmodel in enumerate(self.met_name):
-            f = interp1d(self.ages[metmodel], self.seds[metmodel])
+            f = interp1d(self.ages[metmodel], self.seds[metmodel], bounds_error=False, fill_value="extrapolate")
 
             if self.nmets > 1:
                 ids = mids == i

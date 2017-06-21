@@ -213,7 +213,7 @@ class filters(object):
         else:
             vs = self.solar[:, 0]
             se = self.solar[:, 1]
-        interp = interp1d(vs, se, axis=0)
+        interp = interp1d(vs, se, axis=0, bounds_error=False, fill_value="extrapolate")
         sed_flux = simps(interp(self.f_vs[fn]).T * self.f_tran[fn] / self.f_vs[fn], self.f_vs[fn])
         return -2.5 * np.log10(sed_flux / self.ab_flux[fn])
 
@@ -286,7 +286,7 @@ class filters(object):
                       " magnitude is assigned nan")
                 mag[i] = np.nan
 
-            interp = interp1d(vs, sspmod.get_seds(simd, dust_func=dust_func), axis=0)
+            interp = interp1d(vs, sspmod.get_seds(simd, dust_func=dust_func), axis=0, bounds_error=False, fill_value="extrapolate")
             if flux:
                 mag[i] = (1 + simd.z) * simps(interp(self.f_vs[i] * (1 + simd.z)).T *
                                               self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]
