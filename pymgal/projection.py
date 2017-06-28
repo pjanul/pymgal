@@ -109,6 +109,9 @@ class projection(object):
             else:
                 raise ValueError(
                     "Do not accept this value %s for projection" % self.axis)
+        else:
+            raise ValueError(
+                "Do not accept this value %s for projection" % self.axis)
 
         minx = pos[:, 0].min()
         maxx = pos[:, 0].max()
@@ -175,5 +178,6 @@ class projection(object):
             hdu.header["ORAD"] = float(self.rr)
             hdu.header["REDSHIFT"] = float(self.z)
             hdu.header["PSIZE"] = float(self.pxsize)
+            hdu.header["AGLRES"] = float(self.ar)
             hdu.header["NOTE"] = ""
             hdu.writeto(fname[:-5]+"-"+i+fname[-5:], clobber=clobber)
