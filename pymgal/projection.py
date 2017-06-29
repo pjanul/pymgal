@@ -85,8 +85,7 @@ class projection(object):
             if self.axis.lower() == 'z':
                 pos = s.S_pos[:, :2]
             elif self.axis.lower() == 'y':  # x-z plane
-                pos = s.S_pos[:, :2]
-                pos[:, 1] = s.S_pos[:, 2]
+                pos = s.S_pos[:, ::2]
             elif self.axis.lower() == 'x':  # y - z plane
                 pos = s.S_pos[:, 1:]
             else:
