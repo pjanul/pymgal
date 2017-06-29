@@ -89,9 +89,8 @@ class projection(object):
             elif self.axis.lower() == 'x':  # y - z plane
                 pos = s.S_pos[:, 1:]
             else:
-                if self.axis.lower() != 'z':  # project to xy plane
-                    raise ValueError(
-                        "Do not accept this value %s for projection" % self.axis)
+                # if self.axis.lower() != 'z':  # project to xy plane
+                raise ValueError("Do not accept this value %s for projection" % self.axis)
         elif isinstance(self.axis, type([])):
             if len(self.axis) == 3:
                 sa, ca = np.sin(self.axis[0] / 180. *
