@@ -82,8 +82,10 @@ class projection(object):
         # ratation data points first
 
         if isinstance(self.axis, type('')):
-            pos = s.S_pos[:, :2]
-            if self.axis.lower() == 'y':  # x-z plane
+            if self.axis.lower() == 'z':
+                pos = s.S_pos[:, :2]
+            elif self.axis.lower() == 'y':  # x-z plane
+                pos = s.S_pos[:, :2]
                 pos[:, 1] = s.S_pos[:, 2]
             elif self.axis.lower() == 'x':  # y - z plane
                 pos = s.S_pos[:, 1:]
@@ -113,20 +115,16 @@ class projection(object):
             raise ValueError(
                 "Do not accept this value %s for projection" % self.axis)
 
-        minx = pos[:, 0].min()
-        maxx = pos[:, 0].max()
-        miny = pos[:, 1].min()
-        maxy = pos[:, 1].max()
         if self.ar is None:
             self.pxsize = np.min([maxx - minx, maxy - miny]) / self.npx
         else:
             if self.z <= 0.0:
                 self.z = 0.01
             self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
-            minx = -self.npx * self.pxsize / 2
-            maxx = +self.npx * self.pxsize / 2
-            miny = -self.npx * self.pxsize / 2
-            maxy = +self.npx * self.pxsize / 2
+        minx = -self.npx * self.pxsize / 2
+        maxx = +self.npx * self.pxsize / 2
+        miny = -self.npx * self.pxsize / 2
+        maxy = +self.npx * self.pxsize / 2
 
         xx = np.arange(minx, maxx, self.pxsize)
         self.nx = xx.size
