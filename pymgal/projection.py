@@ -178,6 +178,9 @@ class projection(object):
             hdu.header["ORAD"] = float(self.rr)
             hdu.header["REDSHIFT"] = float(self.z)
             hdu.header["PSIZE"] = float(self.pxsize)
-            hdu.header["AGLRES"] = float(self.ar)
+            if self.ar is None:
+                hdu.header["AGLRES"] = float(0.0)
+            else:
+                hdu.header["AGLRES"] = float(self.ar)
             hdu.header["NOTE"] = ""
             hdu.writeto(fname[:-5]+"-"+i+fname[-5:], clobber=clobber)
