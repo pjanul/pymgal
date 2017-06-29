@@ -114,15 +114,15 @@ class projection(object):
                 "Do not accept this value %s for projection" % self.axis)
 
         if self.ar is None:
-            self.pxsize = np.min([maxx - minx, maxy - miny]) / self.npx
+            self.pxsize = np.min([pos[:, 0].max()-pos[:, 0].min(), pos[:, 1].max()-pos[:, 1].min()])/self.npx
         else:
             if self.z <= 0.0:
                 self.z = 0.01
             self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
-        minx = -self.npx * self.pxsize / 2
-        maxx = +self.npx * self.pxsize / 2
-        miny = -self.npx * self.pxsize / 2
-        maxy = +self.npx * self.pxsize / 2
+        minx = -(self.npx + 1) * self.pxsize / 2
+        maxx = +(self.npx + 1) * self.pxsize / 2
+        miny = -(self.npx + 1) * self.pxsize / 2
+        maxy = +(self.npx + 1) * self.pxsize / 2
 
         xx = np.arange(minx, maxx, self.pxsize)
         self.nx = xx.size
