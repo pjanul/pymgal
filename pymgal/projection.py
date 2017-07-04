@@ -25,6 +25,10 @@ class projection(object):
     redshift: The redshift of the object at. Default: None.
                 If None, redshift from simulation data will be used.
                 Maybe move to 0.01 if it is 0.
+    zthick  : The thickness in projection direction. Default: None.
+                If None, use all data from cutting region. Otherwise set a value in simulation
+                length unit (kpc/h normally), then a slice of data [center-zthick, center+zthick]
+                will be used to make the y-map.
     flux    : is the input wdata in luminosity/flux? Default: False, assume in ab mag.
                 Set this to true if particles' luminosity are given in wdata.
     outmas  : do you want to out put stellar mass? Default: False.
@@ -43,7 +47,7 @@ class projection(object):
     Pdata.write_fits_image("filename.fits")
     """
 
-    def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None,
+    def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, zthick=None,
                  flux=False, outmas=False, outage=False, outmet=False):
 
         self.axis = axis
@@ -63,6 +67,7 @@ class projection(object):
         self.omas = outmas
         self.oage = outage
         self.omet = outmet
+        self.zthick = zthick
         self.outd = {}
 
         # if not flux:
@@ -82,15 +87,19 @@ class projection(object):
         # ratation data points first
 
         if isinstance(self.axis, type('')):
-            if self.axis.lower() == 'z':
-                pos = s.S_pos[:, :2]
-            elif self.axis.lower() == 'y':  # x-z plane
-                pos = s.S_pos[:, ::2]
+            pos = np.copy(s.S_pos)
+            # if self.axis.lower() == 'z':
+            #     pos = s.S_pos[:, :2]
+            if self.axis.lower() == 'y':  # x-z plane
+                pos[:, 1] = s.S_pos[:, 2]
+                pos[:, 2] = s.S_pos[:, 1]
             elif self.axis.lower() == 'x':  # y - z plane
-                pos = s.S_pos[:, 1:]
+                pos[:, 0] = s.S_pos[:, 1]
+                pos[:, 1] = s.S_pos[:, 2]
+                pos[:, 2] = s.S_pos[:, 0]
             else:
-                # if self.axis.lower() != 'z':  # project to xy plane
-                raise ValueError("Do not accept this value %s for projection" % self.axis)
+                if self.axis.lower() != 'z':  # project to xy plane
+                    raise ValueError("Do not accept this value %s for projection" % self.axis)
         elif isinstance(self.axis, type([])):
             if len(self.axis) == 3:
                 sa, ca = np.sin(self.axis[0] / 180. *
@@ -113,6 +122,13 @@ class projection(object):
             raise ValueError(
                 "Do not accept this value %s for projection" % self.axis)
 
+        if self.zthick is not None:
+            ids = (pos[:, 2] > -self.zthick) & (pos[:, 2] < self.zthick)
+            pos = pos[ids, :2]
+            for i in d.keys():
+                d[i] = d[i][ids]
+        else:
+            pos = pos[:, :2]
         if self.ar is None:
             self.pxsize = np.min([pos[:, 0].max()-pos[:, 0].min(), pos[:, 1].max()-pos[:, 1].min()])/self.npx
         else:
