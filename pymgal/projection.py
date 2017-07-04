@@ -118,11 +118,7 @@ class projection(object):
         else:
             if self.z <= 0.0:
                 self.z = 0.01
-<<<<<<< HEAD
             self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_comoving(self.z).value * s.cosmology.h
-=======
-            self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
->>>>>>> e977d4311f4b6624b66fa6241974cd3afd5398a2
         minx = -(self.npx + 1) * self.pxsize / 2
         maxx = +(self.npx + 1) * self.pxsize / 2
         miny = -(self.npx + 1) * self.pxsize / 2
