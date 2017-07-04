@@ -82,15 +82,15 @@ class projection(object):
         # ratation data points first
 
         if isinstance(self.axis, type('')):
-            pos = s.S_pos[:, :2]
-            if self.axis.lower() == 'y':  # x-z plane
-                pos[:, 1] = s.S_pos[:, 2]
+            if self.axis.lower() == 'z':
+                pos = s.S_pos[:, :2]
+            elif self.axis.lower() == 'y':  # x-z plane
+                pos = s.S_pos[:, ::2]
             elif self.axis.lower() == 'x':  # y - z plane
                 pos = s.S_pos[:, 1:]
             else:
-                if self.axis.lower() != 'z':  # project to xy plane
-                    raise ValueError(
-                        "Do not accept this value %s for projection" % self.axis)
+                # if self.axis.lower() != 'z':  # project to xy plane
+                raise ValueError("Do not accept this value %s for projection" % self.axis)
         elif isinstance(self.axis, type([])):
             if len(self.axis) == 3:
                 sa, ca = np.sin(self.axis[0] / 180. *
@@ -109,21 +109,20 @@ class projection(object):
             else:
                 raise ValueError(
                     "Do not accept this value %s for projection" % self.axis)
+        else:
+            raise ValueError(
+                "Do not accept this value %s for projection" % self.axis)
 
-        minx = pos[:, 0].min()
-        maxx = pos[:, 0].max()
-        miny = pos[:, 1].min()
-        maxy = pos[:, 1].max()
         if self.ar is None:
-            self.pxsize = np.min([maxx - minx, maxy - miny]) / self.npx
+            self.pxsize = np.min([pos[:, 0].max()-pos[:, 0].min(), pos[:, 1].max()-pos[:, 1].min()])/self.npx
         else:
             if self.z <= 0.0:
                 self.z = 0.01
-            self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
-            minx = -self.npx * self.pxsize / 2
-            maxx = +self.npx * self.pxsize / 2
-            miny = -self.npx * self.pxsize / 2
-            maxy = +self.npx * self.pxsize / 2
+            self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_comoving(self.z).value * s.cosmology.h
+        minx = -(self.npx + 1) * self.pxsize / 2
+        maxx = +(self.npx + 1) * self.pxsize / 2
+        miny = -(self.npx + 1) * self.pxsize / 2
+        maxy = +(self.npx + 1) * self.pxsize / 2
 
         xx = np.arange(minx, maxx, self.pxsize)
         self.nx = xx.size
@@ -175,5 +174,9 @@ class projection(object):
             hdu.header["ORAD"] = float(self.rr)
             hdu.header["REDSHIFT"] = float(self.z)
             hdu.header["PSIZE"] = float(self.pxsize)
+            if self.ar is None:
+                hdu.header["AGLRES"] = float(0.0)
+            else:
+                hdu.header["AGLRES"] = float(self.ar)
             hdu.header["NOTE"] = ""
             hdu.writeto(fname[:-5]+"-"+i+fname[-5:], clobber=clobber)
