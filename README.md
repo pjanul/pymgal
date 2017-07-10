@@ -5,7 +5,7 @@ This README would normally document whatever steps are necessary to get your app
 ### What is this repository for?
 
 -   This package uses simple stellar synethesis models to generate observed galaxies from hydro-dynamical simulations.
--   1.0
+-   Version beta
 
 ### How do I get set up?
 
@@ -26,3 +26,7 @@ This README would normally document whatever steps are necessary to get your app
 
 -   Please report any issue to Weiguang Cui cuiweiguang@gmail.com.
 -   Or report a bug through issues.
+
+### Acknowledgement
+
+-   This package borrowed a lot things from ezgal (<http://www.baryons.org/ezgal/>). Please make your acknowledgement to their work when you use this package.
