@@ -220,9 +220,10 @@ class filters(object):
     ##############
     #  calc mag  #
     ##############
-    def calc_mag(self, sspmod, simd, fn=None, dust_func=None, apparent=False, vega=False, flux=False):
+    def calc_mag(self, sspmod, simd, fn=None, dust_func=None, redshift=None, apparent=False,
+                 vega=False, flux=False):
         r"""
-        mag = ezsps.astro_filter.calc_mag(vs, sed, z, fn=None)
+        mag = pymgal.calc_mag(ssp, simd, z, fn=None)
 
         sspmod      : loaded ssp models.
         simd        : loaded simulation data from load_data
@@ -230,17 +231,20 @@ class filters(object):
         # :param vs: List of sed frequencies. list, array
         # :param sed: The SED, with units of ergs/s/cm^2/Hz. list, array
         # :param z: The redshift to redshift the SED to. int, float.
-        :param fn: the name of filter/s. string, list of strings,
-                   or None (default, all loaded filters will be included in the calculation)
-        :param apparent, if you need apparent magnitude, default False
-        # :param cosmology, if not specified, assume LCDM with WMAP7 parameter.
-        :returns:   0. Absolute AB magnitude Default
+        fn          : the name of filter/s. string, list of strings, or None
+                        By default (None), all loaded filters will be included in the calculation
+        dust_func   : The function for dust attenuetion.
+        redshift    : Specified redshift of the object. Default: None, the simulation redhsift will
+                        be used.
+        apparent    : If you need apparent magnitude, set True. Default False
+        vega        : AB magnitude in VEGA.
+        flux        : return flux.
+        returns :   0. Absolute AB magnitude Default
                     1. apparent magnitude if apparent=True
                     2. Absolute AB magnitude Outputs vega mags if vega=True
                     3. flux, if flux=True
-        :rtype: array or list of array
 
-        :Example:
+        Example:
 
         Calculate the absolute AB magnitude (or VEGA) of the given sed at the given redshift.
         Set ``z=0`` for rest-frame magnitudes.
@@ -259,16 +263,19 @@ class filters(object):
                 if not isinstance(fn, type([])):
                     raise ValueError("Incorrected filter name ! ", fn)
 
+        if not redshift:
+            redshift = simd.z
+
         if apparent:
-            app = 5. * np.log10(simd.cosmology.luminosity_distance(simd.z).value
-                                * 1.0e5) if simd.z > 0 else -np.inf
+            app = 5. * np.log10(simd.cosmology.luminosity_distance(redshift).value
+                                * 1.0e5) if redshift > 0 else -np.inf
         else:
             app = 0.0
 
         vs = sspmod.vs[sspmod.met_name[0]]
         mag = {}
 
-        shifted = vs / (1 + simd.z)
+        shifted = vs / (1 + redshift)
         for i in fn:
             if vega:
                 to_vega = self.vega_mag[i]
@@ -288,11 +295,11 @@ class filters(object):
 
             interp = interp1d(vs, sspmod.get_seds(simd, dust_func=dust_func), axis=0, bounds_error=False, fill_value="extrapolate")
             if flux:
-                mag[i] = (1 + simd.z) * simps(interp(self.f_vs[i] * (1 + simd.z)).T *
+                mag[i] = (1 + redshift) * simps(interp(self.f_vs[i] * (1 + redshift)).T *
                                               self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]
 
             else:
-                sed_flux = (1 + simd.z) * simps(interp(self.f_vs[i] * (1 + simd.z)).T *
+                sed_flux = (1 + redshift) * simps(interp(self.f_vs[i] * (1 + redshift)).T *
                                                 self.f_tran[i] / self.f_vs[i], self.f_vs[i])
                 mag[i] = -2.5 * np.log10(sed_flux / self.ab_flux[i]) + app + to_vega
         return mag
