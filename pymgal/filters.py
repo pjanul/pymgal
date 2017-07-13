@@ -227,25 +227,23 @@ class filters(object):
 
         sspmod      : loaded ssp models.
         simd        : loaded simulation data from load_data
-        #
-        # :param vs: List of sed frequencies. list, array
-        # :param sed: The SED, with units of ergs/s/cm^2/Hz. list, array
-        # :param z: The redshift to redshift the SED to. int, float.
         fn          : the name of filter/s. string, list of strings, or None
                         By default (None), all loaded filters will be included in the calculation
         dust_func   : The function for dust attenuetion.
-        redshift    : Specified redshift of the object. Default: None, the simulation redhsift will
+        redshift    : Specified redshift of the object. Default: None, the simulation redshift will
                         be used.
         apparent    : If you need apparent magnitude, set True. Default False
         vega        : AB magnitude in VEGA.
         flux        : return flux.
-        returns :   0. Absolute AB magnitude Default
-                    1. apparent magnitude if apparent=True
-                    2. Absolute AB magnitude Outputs vega mags if vega=True
-                    3. flux, if flux=True
+        returns     :   0. Absolute AB magnitude Default
+                        1. apparent magnitude if apparent=True
+                        2. Absolute AB magnitude Outputs vega mags if vega=True
+                        3. flux, if flux=True
 
         Example:
+            mag = pymgal.calc_mag(ssp, simd, z, fn=None)
 
+        Notes:
         Calculate the absolute AB magnitude (or VEGA) of the given sed at the given redshift.
         Set ``z=0`` for rest-frame magnitudes.
         ``vs`` should give the frequency (in Hz) of every point in the SED,
@@ -293,13 +291,14 @@ class filters(object):
                       " magnitude is assigned nan")
                 mag[i] = np.nan
 
-            interp = interp1d(vs, sspmod.get_seds(simd, dust_func=dust_func), axis=0, bounds_error=False, fill_value="extrapolate")
+            interp = interp1d(vs, sspmod.get_seds(simd, dust_func=dust_func), axis=0,
+                              bounds_error=False, fill_value="extrapolate")
             if flux:
                 mag[i] = (1 + redshift) * simps(interp(self.f_vs[i] * (1 + redshift)).T *
-                                              self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]
+                                                self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]
 
             else:
                 sed_flux = (1 + redshift) * simps(interp(self.f_vs[i] * (1 + redshift)).T *
-                                                self.f_tran[i] / self.f_vs[i], self.f_vs[i])
+                                                  self.f_tran[i] / self.f_vs[i], self.f_vs[i])
                 mag[i] = -2.5 * np.log10(sed_flux / self.ab_flux[i]) + app + to_vega
         return mag
