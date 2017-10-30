@@ -71,8 +71,14 @@ class load_data(object):
         self.z = head[3] if head[3] > 0 else 0.0
         spos = readsnapsgl(filename, "POS ", ptype=4, quiet=True)
         if (self.center is not None) and (self.radius is not None):
-            r = np.sqrt(np.sum((spos - self.center)**2, axis=1))
-            ids = r <= self.radius
+            # r = np.sqrt(np.sum((spos - self.center)**2, axis=1))
+            # ids = r <= self.radius
+            ids = (spos[:, 0] >= self.center[0] - self.radius) & \
+                (spos[:, 0] <= self.center[0] + self.radius) & \
+                (spos[:, 1] >= self.center[1] - self.radius) & \
+                (spos[:, 1] <= self.center[1] + self.radius) & \
+                (spos[:, 2] >= self.center[2] - self.radius) & \
+                (spos[:, 2] <= self.center[2] + self.radius)
             self.S_pos = spos[ids] - self.center
         else:
             ids = np.ones(head[0][4], dtype=bool)
