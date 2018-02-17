@@ -13,6 +13,7 @@ class load_data(object):
     ----------
     snapname    : The filename of simulation snapshot. Default : ''
     snapshot    : Is loading snapshot or not? Default : False
+    nmet        : Set how many metals elements in your snapshots file, default = 11
 
     yt_data     : yt data set ds (ds = yt.load()). Default : None
                   Don't use! Currently do not support yet.
@@ -40,7 +41,7 @@ class load_data(object):
 
     """
 
-    def __init__(self, snapname='', snapshot=False, yt_data=None,
+    def __init__(self, snapname='', snapshot=False, nmet=11, yt_data=None,
                  datafile=None, center=None, radius=None):
 
         self.S_age = np.array([])
@@ -56,13 +57,13 @@ class load_data(object):
         self.nx = self.grid_mass = self.grid_age = self.grid_metal = None
 
         if snapshot:
-            self._load_snap(snapname)
+            self._load_snap(snapname, nmet)
         elif yt_data is not None:
             self._load_yt(yt_data)
         elif datafile is not None:
             self._load_raw(datafile)
 
-    def _load_snap(self, filename):
+    def _load_snap(self, filename, nmetal):
         head = readsnapsgl(filename, "HEAD", quiet=True)
         self.cosmology = FlatLambdaCDM(head[-1] * 100, head[-3])
         self.currenta = head[2]
@@ -89,9 +90,9 @@ class load_data(object):
         self.S_age = age.value * 1.0e9  # in yrs
         self.S_mass = readsnapsgl(filename, "MASS", ptype=4, quiet=True)[
             ids] * 1.0e10 / head[-1]  # in M_sun
-        self.S_metal = readsnapsgl(filename, "Z   ", ptype=4, quiet=True)
+        self.S_metal = readsnapsgl(filename, "Z   ", ptype=4, nmet=nmetal, quiet=True)
         if self.S_metal is 0:
-            self.S_metal = readsnapsgl(filename, "ZTOT", ptype=4, quiet=True)[ids]
+            self.S_metal = readsnapsgl(filename, "ZTOT", ptype=4, nmet=nmetal, quiet=True)[ids]
         else:
             self.S_metal = self.S_metal[ids]
 

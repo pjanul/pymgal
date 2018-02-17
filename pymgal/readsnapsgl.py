@@ -30,6 +30,10 @@ def readsnapsgl(filename, block, endian=None, quiet=False, longid=False, nmet=11
     ------------
     The old parameter met "z", is deprecated. If you need metal in z instead of elements,
     simply put 'Z   ' for the block.
+
+    For these snapshots which are more than 4 Gb, i.e. the data size (bytes) indicator,
+    which is just ahead of the data block, is negative, you can use `ptype=1` to overcome
+    the error in reading the data.
     """
 
     if endian is None:
@@ -147,7 +151,7 @@ def readsnapsgl(filename, block, endian=None, quiet=False, longid=False, nmet=11
 
         npf = open(filename, 'rb')
         subdata = read_block(npf, block, endian, quiet, longid, fmt, pty, rawdata)
-        if subdata is not None:
+        if subdata is not None:  # we have subdata
             if block == "MASS":  # We fill the mass with the mass tbl value if needed
                 npf.close()
                 idg0 = (npart > 0) & (masstbl > 0)
@@ -181,7 +185,40 @@ def readsnapsgl(filename, block, endian=None, quiet=False, longid=False, nmet=11
                                     endc += npart[ii]
                             return(subdata[startc:endc])
                     return subdata
-            elif ((block == "Z   ") or (block == "ZTOT")) and (subdata is None):
+            elif ((block == "Z   ") or (block == "ZTOT")) and (ptype is not None):
+                if ptype == 0:
+                    return subdata[:npart[0]]
+                elif ptype == 4:
+                    return subdata[npart[0]:]
+                else:
+                    raise ValueError(
+                        "The given ptype %d is not accepted for metallicity block 'Z   '. ", ptype)
+            else:
+                npf.close()
+                return subdata
+        else:  # No subdata returned
+            if block == 'TEMP':  # No temperature block. Try to calculate the temperature from U
+                temp = read_block(npf, "U   ", endian, 1, longid, fmt, pty, rawdata)
+                if temp is None:
+                    print("Can't read gas Temperature (\"TEMP\") and internal energy (\"U   \")!!")
+                else:
+                    xH = 0.76  # hydrogen mass-fraction
+                    yhelium = (1. - xH) / (4 * xH)
+                    NE = read_block(npf, "NE  ", endian, 1, longid, fmt, pty, rawdata)
+                    if NE is None:
+                        # we assume it is NR run with full ionized gas n_e/nH = 1 + 2*nHe/nH
+                        if mu is None:
+                            mean_mol_weight = (1. + 4. * yhelium) / (1. + 3 * yhelium + 1)
+                        else:
+                            mean_mol_weight = mu
+                    else:
+                        mean_mol_weight = (1. + 4. * yhelium) / (1. + yhelium + NE)
+                    v_unit = 1.0e5 * np.sqrt(time)       # (e.g. 1.0 km/sec)
+                    prtn = 1.67373522381e-24  # (proton mass in g)
+                    bk = 1.3806488e-16        # (Boltzman constant in CGS)
+                    npf.close()
+                    return(temp * (5. / 3 - 1) * v_unit**2 * prtn * mean_mol_weight / bk)
+            elif ((block == "Z   ") or (block == "ZTOT")):
                 # no "Z   " in the data, which needs to calculate it from "Zs  " block
                 subdata = read_block(npf, "Zs  ", endian, True, longid, fmt, pty, rawdata)
                 if subdata is None:
@@ -223,40 +260,7 @@ def readsnapsgl(filename, block, endian=None, quiet=False, longid=False, nmet=11
                     mass, im, subdata = 0, 0, 0
                     npf.close()
                     return zs
-            elif ((block == "Z   ") or (block == "ZTOT")) and (subdata is not None) \
-                    and (ptype is not None):
-                if ptype == 0:
-                    return subdata[:npart[0]]
-                elif ptype == 4:
-                    return subdata[npart[0]:]
-                else:
-                    raise ValueError(
-                        "The given ptype %d is not accepted for metallicity block 'Z   '. ", ptype)
-            else:
-                npf.close()
-                return subdata
-        else:
-            if block == 'TEMP':  # No temperature block. Try to calculate the temperature from U
-                temp = read_block(npf, "U   ", endian, 1, longid, fmt, pty, rawdata)
-                if temp is None:
-                    print("Can't read gas Temperature (\"TEMP\") and internal energy (\"U   \")!!")
-                else:
-                    xH = 0.76  # hydrogen mass-fraction
-                    yhelium = (1. - xH) / (4 * xH)
-                    NE = read_block(npf, "NE  ", endian, 1, longid, fmt, pty, rawdata)
-                    if NE is None:
-                        # we assume it is NR run with full ionized gas n_e/nH = 1 + 2*nHe/nH
-                        if mu is None:
-                            mean_mol_weight = (1. + 4. * yhelium) / (1. + 3 * yhelium + 1)
-                        else:
-                            mean_mol_weight = mu
-                    else:
-                        mean_mol_weight = (1. + 4. * yhelium) / (1. + yhelium + NE)
-                    v_unit = 1.0e5 * np.sqrt(time)       # (e.g. 1.0 km/sec)
-                    prtn = 1.67373522381e-24  # (proton mass in g)
-                    bk = 1.3806488e-16        # (Boltzman constant in CGS)
-                    npf.close()
-                    return(temp * (5. / 3 - 1) * v_unit**2 * prtn * mean_mol_weight / bk)
+
             if not quiet:
                 print("No such blocks!!! or Not add in this reading!!!", block)
             npf.close()
