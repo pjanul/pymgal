@@ -185,14 +185,14 @@ def readsnapsgl(filename, block, endian=None, quiet=False, longid=False, nmet=11
                                     endc += npart[ii]
                             return(subdata[startc:endc])
                     return subdata
-            elif ((block == "Z   ") or (block == "ZTOT")) and (ptype is not None):
+            elif ((block == "Z   ") or (block == "ZTOT") or (block == "Zs  ")) and (ptype is not None):
                 if ptype == 0:
                     return subdata[:npart[0]]
                 elif ptype == 4:
                     return subdata[npart[0]:]
                 else:
                     raise ValueError(
-                        "The given ptype %d is not accepted for metallicity block 'Z   '. ", ptype)
+                        "The given ptype %d is not accepted for metallicity block %s.", ptype, block)
             else:
                 npf.close()
                 return subdata
