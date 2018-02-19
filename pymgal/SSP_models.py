@@ -9,6 +9,14 @@ import numpy as np
 import pyfits
 from multiprocessing import Process, cpu_count, Queue, freeze_support
 
+def _worker(input, output):
+    for func, args in iter(input.get, 'STOP'):
+        result = _calculate(func, args)
+        output.put(result)
+def _calculate(func, args):
+    return func(*args)
+def _fi(fintp,sage,smas):
+    return fintp(sage) * smas
 
 class SSP_models(object):
     r""" Load simple stellar population models.
@@ -348,15 +356,6 @@ class SSP_models(object):
             # sind = self.vs.argsort()
             # self.vs = self.vs[sind]
             # self.seds = self.seds[sind, :]
-
-    def _worker(input, output):
-        for func, args in iter(input.get, 'STOP'):
-            result = _calculate(func, args)
-            output.put(result)
-    def _calculate(func, args):
-        return func(*args)
-    def _fi(fintp,sage,smas):
-        return fintp(sage) * smas
 
 
     def get_seds(self, simdata, Ncpu=None, dust_func=None, units='Fv'):
