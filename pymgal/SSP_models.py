@@ -7,6 +7,7 @@ from scipy.interpolate import interp1d
 # import astro_filter_light
 import numpy as np
 import pyfits
+from multiprocessing import Process, cpu_count, Queue, freeze_support
 
 
 class SSP_models(object):
@@ -348,13 +349,24 @@ class SSP_models(object):
             # self.vs = self.vs[sind]
             # self.seds = self.seds[sind, :]
 
-    def get_seds(self, simdata, dust_func=None, units='Fv'):
+    def _worker(input, output):
+        for func, args in iter(input.get, 'STOP'):
+            result = self._calculate(func, args)
+            output.put(result)
+    def _calculate(func, args):
+        return func(*args)
+    def _fi(fintp,sage,smas):
+        return fintp(sage) * smas
+
+
+    def get_seds(self, simdata, Ncpu=None, dust_func=None, units='Fv'):
         r"""
-        Seds = SSP_model(simdata, dust_func=None, units='Fv')
+        Seds = SSP_model(simdata, Ncpu=None, dust_func=None, units='Fv')
 
         Parameters
         ----------
         simudata   : Simulation data read from load_data
+        Ncpu       : The number of CPUs for parallel interpolation
         dust_func  : dust function.
         units      : The units for retruned SEDS. Default: 'Fv'
 
@@ -378,23 +390,65 @@ class SSP_models(object):
         # We do not do 2D interpolation since there is only several metallicity
         # in the models.
         if self.nmets > 1:
-            mids = np.interp(simdata.S_metal, self.metals,
-                             np.arange(self.nmets))
+            mids = np.interp(simdata.S_metal, self.metals, np.arange(self.nmets))
             mids = np.int32(np.round(mids))
 
         for i, metmodel in enumerate(self.met_name):
             f = interp1d(self.ages[metmodel], self.seds[metmodel], bounds_error=False, fill_value="extrapolate")
 
             if self.nmets > 1:
-                ids = mids == i
+                ids = np.where(mids == i)[0]
             else:
                 ids = np.ones(simdata.S_metal.size, dtype=np.bool)
 
-            if dust_func is None:
-                seds[:, ids] = f(simdata.S_age[ids]) * simdata.S_mass[ids]
+            #parallel
+            freeze_support()
+            if Ncpu is None:
+                NUMBER_OF_PROCESSES = cpu_count()
             else:
-                seds[:, ids] = f(simdata.S_age[ids]) * simdata.S_mass[ids] * \
-                    dust_func(simdata.S_age[ids], self.ls[metmodel])
+                NUMBER_OF_PROCESSES = Ncpu
+
+            Ns=2000
+            N = np.int32(ids.size/2000)  #Number of total Tasks, control the size of passing arrays
+            if N < NUMBER_OF_PROCESSES:
+                N = NUMBER_OF_PROCESSES
+                Ns = np.int32(ids.size/N)
+
+            # Create queues
+            task_queue = Queue()
+            done_queue = Queue()
+
+            Tasks = [(self._fi, (f, simdata.S_age[ids][i*Ns:(i+1)*Ns], simdata.S_mass[ids][i*Ns:(i+1)*Ns])) for i in range(N)]
+            if ids.size - N*Ns > 0:
+                Tasks.append((self._fi, (f, simdata.S_age[ids][N*Ns:ids.size], simdata.S_mass[ids][N*Ns:ids.size])))
+
+            # Submit tasks
+            for task in Tasks:
+                task_queue.put(task)
+
+            # Start worker processes
+            for i in range(NUMBER_OF_PROCESSES):
+                Process(target=self._worker, args=(task_queue, done_queue)).start()
+
+            # Get results
+            for i in range(len(Tasks)):
+                if i<N:
+                    seds[:, ids[i*Ns:(i+1)*Ns]] = done_queue.get()
+                elif i == N:
+                    seds[:, ids[N*Ns:]] = done_queue.get()
+                else:
+                    raise ValueError("Wrong in number of Tasks %d, %d" % (i,len(Tasks)))
+
+            # Tell child processes to stop
+            for i in range(NUMBER_OF_PROCESSES):
+                task_queue.put('STOP')
+
+            if dust_func is not None:
+                seds[:, ids] *= dust_func(simdata.S_age[ids], self.ls[metmodel])
+            #     seds[:, ids] = f(simdata.S_age[ids]) * simdata.S_mass[ids]
+            # else:
+                # seds[:, ids] = f(simdata.S_age[ids]) * simdata.S_mass[ids] * \
+                #     dust_func(simdata.S_age[ids], self.ls[metmodel])
 
         # if simdata.grid_mass is not None:
         #     seds = binned_statistic_2d(simdata.S_pos[:, 0], simdata.S_pos[:, 1],
