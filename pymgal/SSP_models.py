@@ -351,7 +351,7 @@ class SSP_models(object):
 
     def _worker(input, output):
         for func, args in iter(input.get, 'STOP'):
-            result = self._calculate(func, args)
+            result = _calculate(func, args)
             output.put(result)
     def _calculate(func, args):
         return func(*args)
@@ -418,9 +418,9 @@ class SSP_models(object):
             task_queue = Queue()
             done_queue = Queue()
 
-            Tasks = [(self._fi, (f, simdata.S_age[ids][i*Ns:(i+1)*Ns], simdata.S_mass[ids][i*Ns:(i+1)*Ns])) for i in range(N)]
+            Tasks = [(_fi, (f, simdata.S_age[ids][i*Ns:(i+1)*Ns], simdata.S_mass[ids][i*Ns:(i+1)*Ns])) for i in range(N)]
             if ids.size - N*Ns > 0:
-                Tasks.append((self._fi, (f, simdata.S_age[ids][N*Ns:ids.size], simdata.S_mass[ids][N*Ns:ids.size])))
+                Tasks.append((_fi, (f, simdata.S_age[ids][N*Ns:ids.size], simdata.S_mass[ids][N*Ns:ids.size])))
 
             # Submit tasks
             for task in Tasks:
@@ -428,7 +428,7 @@ class SSP_models(object):
 
             # Start worker processes
             for i in range(NUMBER_OF_PROCESSES):
-                Process(target=self._worker, args=(task_queue, done_queue)).start()
+                Process(target=_worker, args=(task_queue, done_queue)).start()
 
             # Get results
             for i in range(len(Tasks)):
