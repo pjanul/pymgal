@@ -9,14 +9,20 @@ import numpy as np
 import pyfits
 from multiprocessing import Process, cpu_count, Queue, freeze_support
 
+
 def worker(input, output):
     for func, args in iter(input.get, 'STOP'):
-        result = _calculate(func, args)
+        result = calculate(func, args)
         output.put(result)
+
+
 def calculate(func, args):
     return func(*args)
-def fi(fintp,sage,smas):
+
+
+def fi(fintp, sage, smas):
     return fintp(sage) * smas
+
 
 class SSP_models(object):
     r""" Load simple stellar population models.
@@ -164,7 +170,8 @@ class SSP_models(object):
                 for i, mn in enumerate(self.met_name):
                     newfreq = np.arange(self.vs[mn].min(), self.vs[mn].max(
                     ), (self.vs[mn].max() - self.vs[mn].min() * 0.999) / self.defined_freq)
-                    f = interp1d(self.vs[mn], self.seds[mn].T, bounds_error=False, fill_value="extrapolate")
+                    f = interp1d(self.vs[mn], self.seds[mn].T,
+                                 bounds_error=False, fill_value="extrapolate")
                     self.seds[mn] = f(newfreq).T
                     self.vs[mn] = newfreq
                     self.nvs[i] = self.nls[i] = self.defined_freq
@@ -172,7 +179,8 @@ class SSP_models(object):
             elif isinstance(self.defined_freq, type([])) or isinstance(self.defined_freq, type(np.ones(1))):
                 newfreq = np.asarray(self.defined_freq)
                 for i, mn in enumerate(self.met_name):
-                    f = interp1d(self.vs[mn], self.seds[mn].T, bounds_error=False, fill_value="extrapolate")
+                    f = interp1d(self.vs[mn], self.seds[mn].T,
+                                 bounds_error=False, fill_value="extrapolate")
                     self.seds[mn] = f(newfreq).T
                     self.vs[mn] = newfreq
                     self.nvs[i] = self.nls[i] = len(newfreq)
@@ -267,8 +275,7 @@ class SSP_models(object):
                 # store wavelength
                 self.vs[self.met_name[i]] = fits[1].data.field('vs')
                 self.nvs.append(fits[1].data.field('vs').size)
-                self.ls[self.met_name[i]] = utils.to_lambda(
-                    fits[1].data.field('vs'))
+                self.ls[self.met_name[i]] = utils.to_lambda(fits[1].data.field('vs'))
                 self.nls.append(fits[1].data.field('vs').size)
                 # store ages
                 self.ages[self.met_name[i]] = fits[2].data.field('ages')
@@ -276,8 +283,7 @@ class SSP_models(object):
                 # how about masses?
                 if 'has_mass' in fits[2].header and fits[2].header['has_mass']:
                     self.has_masses = True
-                    self.masses[self.met_name[i]
-                                ] = fits[2].data.field('masses')
+                    self.masses[self.met_name[i]] = fits[2].data.field('masses')
                 # and sfh?
                 if 'has_sfh' in fits[2].header and fits[2].header['has_sfh']:
                     self.sfh[self.met_name[i]] = fits[2].data.field('sfh')
@@ -357,7 +363,6 @@ class SSP_models(object):
             # self.vs = self.vs[sind]
             # self.seds = self.seds[sind, :]
 
-
     def get_seds(self, simdata, Ncpu=None, dust_func=None, units='Fv'):
         r"""
         Seds = SSP_model(simdata, Ncpu=None, dust_func=None, units='Fv')
@@ -393,33 +398,37 @@ class SSP_models(object):
             mids = np.int32(np.round(mids))
 
         for i, metmodel in enumerate(self.met_name):
-            f = interp1d(self.ages[metmodel], self.seds[metmodel], bounds_error=False, fill_value="extrapolate")
+            f = interp1d(self.ages[metmodel], self.seds[metmodel],
+                         bounds_error=False, fill_value="extrapolate")
 
             if self.nmets > 1:
                 ids = np.where(mids == i)[0]
             else:
                 ids = np.ones(simdata.S_metal.size, dtype=np.bool)
 
-            #parallel
+            # parallel
             freeze_support()
             if Ncpu is None:
                 NUMBER_OF_PROCESSES = cpu_count()
             else:
                 NUMBER_OF_PROCESSES = Ncpu
 
-            Ns=2000
-            N = np.int32(ids.size/2000)  #Number of total Tasks, control the size of passing arrays
+            Ns = 2000
+            # Number of total Tasks, control the size of passing arrays
+            N = np.int32(ids.size / 2000)
             if N < NUMBER_OF_PROCESSES:
                 N = NUMBER_OF_PROCESSES
-                Ns = np.int32(ids.size/N)
+                Ns = np.int32(ids.size / N)
 
             # Create queues
             task_queue = Queue()
             done_queue = Queue()
 
-            Tasks = [(fi, (f, simdata.S_age[ids][i*Ns:(i+1)*Ns], simdata.S_mass[ids][i*Ns:(i+1)*Ns])) for i in range(N)]
-            if ids.size - N*Ns > 0:
-                Tasks.append((fi, (f, simdata.S_age[ids][N*Ns:ids.size], simdata.S_mass[ids][N*Ns:ids.size])))
+            Tasks = [(fi, (f, simdata.S_age[ids][i * Ns:(i + 1) * Ns],
+                           simdata.S_mass[ids][i * Ns:(i + 1) * Ns])) for i in range(N)]
+            if ids.size - N * Ns > 0:
+                Tasks.append(
+                    (fi, (f, simdata.S_age[ids][N * Ns:ids.size], simdata.S_mass[ids][N * Ns:ids.size])))
 
             # Submit tasks
             for task in Tasks:
@@ -431,12 +440,12 @@ class SSP_models(object):
 
             # Get results
             for i in range(len(Tasks)):
-                if i<N:
-                    seds[:, ids[i*Ns:(i+1)*Ns]] = done_queue.get()
+                if i < N:
+                    seds[:, ids[i * Ns:(i + 1) * Ns]] = done_queue.get()
                 elif i == N:
-                    seds[:, ids[N*Ns:]] = done_queue.get()
+                    seds[:, ids[N * Ns:]] = done_queue.get()
                 else:
-                    raise ValueError("Wrong in number of Tasks %d, %d" % (i,len(Tasks)))
+                    raise ValueError("Wrong in number of Tasks %d, %d" % (i, len(Tasks)))
 
             # Tell child processes to stop
             for i in range(NUMBER_OF_PROCESSES):
