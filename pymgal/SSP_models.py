@@ -9,13 +9,13 @@ import numpy as np
 import pyfits
 from multiprocessing import Process, cpu_count, Queue, freeze_support
 
-def _worker(input, output):
+def worker(input, output):
     for func, args in iter(input.get, 'STOP'):
         result = _calculate(func, args)
         output.put(result)
-def _calculate(func, args):
+def calculate(func, args):
     return func(*args)
-def _fi(fintp,sage,smas):
+def fi(fintp,sage,smas):
     return fintp(sage) * smas
 
 class SSP_models(object):
@@ -417,9 +417,9 @@ class SSP_models(object):
             task_queue = Queue()
             done_queue = Queue()
 
-            Tasks = [(_fi, (f, simdata.S_age[ids][i*Ns:(i+1)*Ns], simdata.S_mass[ids][i*Ns:(i+1)*Ns])) for i in range(N)]
+            Tasks = [(fi, (f, simdata.S_age[ids][i*Ns:(i+1)*Ns], simdata.S_mass[ids][i*Ns:(i+1)*Ns])) for i in range(N)]
             if ids.size - N*Ns > 0:
-                Tasks.append((_fi, (f, simdata.S_age[ids][N*Ns:ids.size], simdata.S_mass[ids][N*Ns:ids.size])))
+                Tasks.append((fi, (f, simdata.S_age[ids][N*Ns:ids.size], simdata.S_mass[ids][N*Ns:ids.size])))
 
             # Submit tasks
             for task in Tasks:
@@ -427,7 +427,7 @@ class SSP_models(object):
 
             # Start worker processes
             for i in range(NUMBER_OF_PROCESSES):
-                Process(target=_worker, args=(task_queue, done_queue)).start()
+                Process(target=worker, args=(task_queue, done_queue)).start()
 
             # Get results
             for i in range(len(Tasks)):
