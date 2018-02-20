@@ -20,9 +20,9 @@ def calculate(func, args):
     return func(*args)
 
 
-def fi(ages, seds, sage, smas):
+def fi(n1, n2, ages, seds, sage, smas):
     f = interp1d(ages, seds, bounds_error=False, fill_value="extrapolate")
-    return f(sage) * smas
+    return n1, n2, f(sage) * smas
 
 
 class SSP_models(object):
@@ -425,11 +425,11 @@ class SSP_models(object):
             task_queue = Queue()
             done_queue = Queue()
 
-            Tasks = [(fi, (self.ages[metmodel], self.seds[metmodel],
+            Tasks = [(fi, (i * Ns, (i + 1) * Ns, self.ages[metmodel], self.seds[metmodel],
                            simdata.S_age[ids][i * Ns:(i + 1) * Ns],
                            simdata.S_mass[ids][i * Ns:(i + 1) * Ns])) for i in range(N)]
             if ids.size - N * Ns > 0:
-                Tasks.append((fi, (self.ages[metmodel], self.seds[metmodel],
+                Tasks.append((fi, (N * Ns, ids.size, self.ages[metmodel], self.seds[metmodel],
                                    simdata.S_age[ids][N * Ns:ids.size],
                                    simdata.S_mass[ids][N * Ns:ids.size])))
 
@@ -443,12 +443,8 @@ class SSP_models(object):
 
             # Get results
             for i in range(len(Tasks)):
-                if i < N:
-                    seds[:, ids[i * Ns:(i + 1) * Ns]] = done_queue.get()
-                elif i == N:
-                    seds[:, ids[N * Ns:]] = done_queue.get()
-                else:
-                    raise ValueError("Wrong in number of Tasks %d, %d" % (i, len(Tasks)))
+                n1, n2, data = done_queue.get()
+                seds[:, ids[n1:n2]] = data
 
             # Tell child processes to stop
             for i in range(NUMBER_OF_PROCESSES):
