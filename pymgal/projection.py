@@ -14,9 +14,10 @@ class projection(object):
                 It is coming from the outputs of filters.calc_mag.
                 The array must be the same length of simulation data or npx x npx.
     simd    : The loaded simulation data from load_data function.
-    axis    : can be 'x', 'y', 'z', or a list of degrees [alpha, beta, gamma],
+    axis    : can be 'x', 'y', 'z', or a list/np.array of degrees [alpha, beta, gamma],
                 which will rotate the data points by $\alpha$ around the x-axis,
-                $\beta$ around the y-axis, and $\gamma$ around the z-axis
+                $\beta$ around the y-axis, and $\gamma$ around the z-axis.
+                or directly the rotation matrix [3x3] in np.array.
                 Default: "z"
     npx     : The pixel number of the grid for projection.
                 Type: int. Default: 512
@@ -118,6 +119,26 @@ class projection(object):
             else:
                 raise ValueError(
                     "Do not accept this value %s for projection" % self.axis)
+        elif isinstance(self.axis, type(np.array([]))):
+            if len(self.axis.shape) == 1:
+                sa, ca = np.sin(self.axis[0] / 180. *
+                                np.pi), np.cos(self.axis[0] / 180. * np.pi)
+                sb, cb = np.sin(self.axis[1] / 180. *
+                                np.pi), np.cos(self.axis[1] / 180. * np.pi)
+                sg, cg = np.sin(self.axis[2] / 180. *
+                                np.pi), np.cos(self.axis[2] / 180. * np.pi)
+                # ratation matrix from
+                # http://inside.mines.edu/fs_home/gmurray/ArbitraryAxisRotation/
+                Rxyz = np.array(
+                    [[cb * cg, cg * sa * sb - ca * sg, ca * cg * sb + sa * sg],
+                     [cb * sg, ca * cg + sa * sb * sg, ca * sb * sg - cg * sa],
+                     [-sb,     cb * sa,                ca * cb]], dtype=np.float64)
+                pos = np.dot(s.S_pos, Rxyz)
+            elif len(self.axis.shape) == 2:
+                if self.axis.shape[0] == self.axis.shape[1] == 3:
+                    pos = np.dot(s.S_pos, self.axis)
+                else:
+                    raise ValueError("Axis shape is not 3x3: ", self.axis.shape)
         else:
             raise ValueError(
                 "Do not accept this value %s for projection" % self.axis)
