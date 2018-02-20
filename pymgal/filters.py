@@ -220,8 +220,8 @@ class filters(object):
     ##############
     #  calc mag  #
     ##############
-    def calc_mag(self, sspmod, simd, fn=None, dust_func=None, redshift=None, apparent=False,
-                 vega=False, flux=False):
+    def calc_mag(self, sspmod, simd, fn=None, Ncpu=None, dust_func=None, redshift=None,
+                 apparent=False, vega=False, flux=False):
         r"""
         mag = pymgal.calc_mag(ssp, simd, z, fn=None)
 
@@ -229,6 +229,7 @@ class filters(object):
         simd        : loaded simulation data from load_data
         fn          : the name of filter/s. string, list of strings, or None
                         By default (None), all loaded filters will be included in the calculation
+        Ncpu        : The number of CPUs for parallel interpolation
         dust_func   : The function for dust attenuetion.
         redshift    : Specified redshift of the object. Default: None, the simulation redshift will
                         be used.
@@ -291,7 +292,7 @@ class filters(object):
                       " magnitude is assigned nan")
                 mag[i] = np.nan
 
-            interp = interp1d(vs, sspmod.get_seds(simd, dust_func=dust_func), axis=0,
+            interp = interp1d(vs, sspmod.get_seds(simd, Ncpu=Ncpu, dust_func=dust_func), axis=0,
                               bounds_error=False, fill_value="extrapolate")
             if flux:
                 mag[i] = (1 + redshift) * simps(interp(self.f_vs[i] * (1 + redshift)).T *

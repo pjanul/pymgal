@@ -20,8 +20,9 @@ def calculate(func, args):
     return func(*args)
 
 
-def fi(fintp, sage, smas):
-    return fintp(sage) * smas
+def fi(ages, seds, sage, smas):
+    f = interp1d(ages, seds, bounds_error=False, fill_value="extrapolate")
+    return f(sage) * smas
 
 
 class SSP_models(object):
@@ -398,8 +399,8 @@ class SSP_models(object):
             mids = np.int32(np.round(mids))
 
         for i, metmodel in enumerate(self.met_name):
-            f = interp1d(self.ages[metmodel], self.seds[metmodel],
-                         bounds_error=False, fill_value="extrapolate")
+            # f = interp1d(self.ages[metmodel], self.seds[metmodel],
+            #              bounds_error=False, fill_value="extrapolate")
 
             if self.nmets > 1:
                 ids = np.where(mids == i)[0]
@@ -413,9 +414,9 @@ class SSP_models(object):
             else:
                 NUMBER_OF_PROCESSES = Ncpu
 
-            Ns = 2000
+            Ns = 20000
             # Number of total Tasks, control the size of passing arrays
-            N = np.int32(ids.size / 2000)
+            N = np.int32(ids.size / Ns)
             if N < NUMBER_OF_PROCESSES:
                 N = NUMBER_OF_PROCESSES
                 Ns = np.int32(ids.size / N)
@@ -424,11 +425,13 @@ class SSP_models(object):
             task_queue = Queue()
             done_queue = Queue()
 
-            Tasks = [(fi, (f, simdata.S_age[ids][i * Ns:(i + 1) * Ns],
+            Tasks = [(fi, (self.ages[metmodel], self.seds[metmodel],
+                           simdata.S_age[ids][i * Ns:(i + 1) * Ns],
                            simdata.S_mass[ids][i * Ns:(i + 1) * Ns])) for i in range(N)]
             if ids.size - N * Ns > 0:
-                Tasks.append(
-                    (fi, (f, simdata.S_age[ids][N * Ns:ids.size], simdata.S_mass[ids][N * Ns:ids.size])))
+                Tasks.append((fi, (self.ages[metmodel], self.seds[metmodel],
+                                   simdata.S_age[ids][N * Ns:ids.size],
+                                   simdata.S_mass[ids][N * Ns:ids.size])))
 
             # Submit tasks
             for task in Tasks:
