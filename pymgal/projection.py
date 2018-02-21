@@ -187,6 +187,8 @@ class projection(object):
             self.outd["Metal"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass * s.S_metal)[0]
             self.outd["Metal"][ids] /= self.outd["Mass"][ids]
 
+        self.pxsize /= s.cosmology.h  # Now pixel size in physical
+
     def write_fits_image(self, fname, clobber=False):
         r"""
         Generate a image by binning X-ray counts and write it to a FITS file.
@@ -207,7 +209,7 @@ class projection(object):
             hdu = pf.PrimaryHDU(self.outd[i].T)
             hdu.header["RCVAL1"] = float(self.cc[0])
             hdu.header["RCVAL2"] = float(self.cc[1])
-            hdu.header["UNITS"] = "kpc/h"
+            hdu.header["UNITS"] = "kpc"
             hdu.header["ORAD"] = float(self.rr)
             hdu.header["REDSHIFT"] = float(self.z)
             hdu.header["PSIZE"] = float(self.pxsize)
