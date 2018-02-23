@@ -414,7 +414,7 @@ class SSP_models(object):
             else:
                 NUMBER_OF_PROCESSES = Ncpu
 
-            Ns = 20000
+            Ns = 2000
             # Number of total Tasks, control the size of passing arrays
             N = np.int32(ids.size / Ns)
             if N < NUMBER_OF_PROCESSES:
