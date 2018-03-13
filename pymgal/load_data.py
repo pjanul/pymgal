@@ -80,10 +80,11 @@ class load_data(object):
                 (spos[:, 1] <= self.center[1] + self.radius) & \
                 (spos[:, 2] >= self.center[2] - self.radius) & \
                 (spos[:, 2] <= self.center[2] + self.radius)
-            self.S_pos = spos[ids] - self.center
+            self.S_pos = spos[ids]  # - self.center
         else:
             ids = np.ones(head[0][4], dtype=bool)
-            self.S_pos = spos - np.mean(spos, axis=0)
+            self.S_pos = spos  # - np.mean(spos, axis=0)
+            self.center = np.mean(spos, axis=0)
         age = readsnapsgl(filename, "AGE ", quiet=True)[:head[0][4]][ids]
         age = self.Uage - self.cosmology.age(1. / age - 1)
         age[age < 0] = 0  # remove negative ages
