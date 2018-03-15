@@ -1,6 +1,16 @@
 import numpy as np
+import astropy.units as u
+import re
+from astropy.coordinates import SkyCoord
+from astropy.time import Time
+import version
 # scipy must >= 0.17 to properly use this!
 # from scipy.stats import binned_statistic_2d
+
+
+def get_property(prop):
+    result = re.search(r'{}\s*=\s*[\'"]([^\'"]*)[\'"]'.format(prop), open('__init__.py').read())
+    return result.group(1)
 
 
 class projection(object):
@@ -31,6 +41,10 @@ class projection(object):
                 If None, use all data from cutting region. Otherwise set a value in simulation
                 length unit (kpc/h normally), then a slice of data [center-zthick, center+zthick]
                 will be used to make the y-map.
+    SP      : Faked sky positions in [RA (longitude), DEC (latitude)] in degrees.
+                Default: [194.95, 27.98], Coma' position.
+                If [x,y,z] (len(SP) == 3) of the Earth position in the pos coordinate is given,
+                The pos - [x,y,z] are taken as the J2000 3D coordinates and converted into RA, DEC.
     flux    : is the input wdata in luminosity/flux? Default: False, assume in ab mag.
                 Set this to true if particles' luminosity are given in wdata.
     outmas  : do you want to out put stellar mass? Default: False.
@@ -39,6 +53,7 @@ class projection(object):
                 If True, the stellar age in each pixel are saved.
     outmet  : do you want to out put stellar metallicity (mass weighted)? Default: False.
                 If True, the stellar metallicity in each pixel are saved.
+    Note    : The comments in str will be put into the fit file header. Defualt: None
     Notes
     -----
 
@@ -50,7 +65,8 @@ class projection(object):
     """
 
     def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, zthick=None,
-                 flux=False, outmas=False, outage=False, outmet=False):
+                 SP=[194.95, 27.98], flux=False, outmas=False, outage=False, outmet=False,
+                 Note='None'):
 
         self.axis = axis
         self.npx = npx
@@ -60,10 +76,16 @@ class projection(object):
         else:
             self.z = redshift
         self.flux = flux
-        self.nx = 0
-        self.ny = 0
+
         self.pxsize = 0.
-        self.cc = simd.center
+        if len(SP) == 2:
+            self.sp = SP
+            self.cc = simd.center
+        elif len(SP) == 3:
+            self.sp = False
+            self.cc = SP
+        else:
+            raise ValueError("SP length should be either 2 or 3!")
         self.rr = simd.radius
         self.flux = flux
         self.omas = outmas
@@ -71,6 +93,7 @@ class projection(object):
         self.omet = outmet
         self.zthick = zthick
         self.outd = {}
+        self.note = Note
 
         # if not flux:
         #     if isinstance(data, type({})):
@@ -88,20 +111,25 @@ class projection(object):
         """
         # ratation data points first
 
+        pos = np.copy(s.S_pos)
+        pos -= self.cc
+
         if isinstance(self.axis, type('')):
-            pos = np.copy(s.S_pos)
-            # if self.axis.lower() == 'z':
-            #     pos = s.S_pos[:, :2]
             if self.axis.lower() == 'y':  # x-z plane
-                pos[:, 1] = s.S_pos[:, 2]
-                pos[:, 2] = s.S_pos[:, 1]
+                pos = pos[:, [0, 2, 1]]
+                if self.sp is False:
+                    self.cc[0], self.cc[1], self.cc[2] = s.center[0] - self.cc[0],\
+                        s.center[2] - self.cc[2], s.center[1] - self.cc[1]
             elif self.axis.lower() == 'x':  # y - z plane
-                pos[:, 0] = s.S_pos[:, 1]
-                pos[:, 1] = s.S_pos[:, 2]
-                pos[:, 2] = s.S_pos[:, 0]
+                pos = pos[:, [1, 2, 0]]
+                if self.sp is False:
+                    self.cc[0], self.cc[1], self.cc[2] = s.center[1] - self.cc[1],\
+                        s.center[2] - self.cc[2], s.center[0] - self.cc[0]
             else:
                 if self.axis.lower() != 'z':  # project to xy plane
                     raise ValueError("Do not accept this value %s for projection" % self.axis)
+                if self.sp is False:
+                    self.cc = s.center - self.cc
         elif isinstance(self.axis, type([])):
             if len(self.axis) == 3:
                 sa, ca = np.sin(self.axis[0] / 180. *
@@ -116,17 +144,23 @@ class projection(object):
                     [[cb * cg, cg * sa * sb - ca * sg, ca * cg * sb + sa * sg],
                      [cb * sg, ca * cg + sa * sb * sg, ca * sb * sg - cg * sa],
                      [-sb,     cb * sa,                ca * cb]], dtype=np.float64)
-                pos = np.dot(s.S_pos, Rxyz)[:, :2]
+                pos = np.dot(pos, Rxyz)
+                if self.sp is False:
+                    self.cc = np.dot(s.center - self.cc, Rxyz)
             else:
                 raise ValueError(
                     "Do not accept this value %s for projection" % self.axis)
-        elif isinstance(self.axis, type(np.array([]))):  # only vector for the line of sight.
-            if len(self.axis.shape) == 1:
+        elif isinstance(self.axis, type(np.array([]))):
+            if len(self.axis.shape) == 1:  # only vector from the line of sight.
                 normed_axis = self.axis/np.sqrt(np.sum(self.axis**2))
-                pos = np.cross(normed_axis, np.cross(s.S_pos, normed_axis))
+                pos = np.cross(normed_axis, np.cross(pos, normed_axis))
+                if self.sp is False:
+                    self.cc = np.cross(normed_axis, np.cross(s.center - self.cc, normed_axis))
             elif len(self.axis.shape) == 2:
                 if self.axis.shape[0] == self.axis.shape[1] == 3:
-                    pos = np.dot(s.S_pos, self.axis)
+                    pos = np.dot(pos, self.axis)
+                    if self.sp is False:
+                        self.cc = np.dot(s.center - self.cc, self.axis)
                 else:
                     raise ValueError("Axis shape is not 3x3: ", self.axis.shape)
         else:
@@ -134,34 +168,56 @@ class projection(object):
                 "Do not accept this value %s for projection" % self.axis)
 
         if self.zthick is not None:
-            ids = (pos[:, 2] > -self.zthick) & (pos[:, 2] < self.zthick)
-            pos = pos[ids, :2]
+            if self.sp is False:  # pos is not centered at 0,0,0
+                ids = (pos[:, 2] > self.cc[2] - self.zthick) & (pos[:, 2] < self.cc[2] + self.zthick)
+            else:
+                ids = (pos[:, 2] > -self.zthick) & (pos[:, 2] < self.zthick)
+            pos = pos[ids]
             for i in d.keys():
                 d[i] = d[i][ids]
-        else:
-            pos = pos[:, :2]
+
         if self.ar is None:
             self.pxsize = np.min([pos[:, 0].max()-pos[:, 0].min(), pos[:, 1].max()-pos[:, 1].min()])/self.npx
+            if self.z <= 0.0:
+                self.ar = self.pxsize / s.cosmology.h * s.cosmology.arcsec_per_kpc_comoving(0.05).value
+            else:
+                self.ar = self.pxsize / s.cosmology.h * s.cosmology.arcsec_per_kpc_comoving(self.z).value
         else:
             if self.z <= 0.0:
-                self.z = 0.01
+                self.z = 0.05
             self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_comoving(self.z).value * s.cosmology.h
-        minx = -(self.npx + 1) * self.pxsize / 2
-        maxx = +(self.npx + 1) * self.pxsize / 2
-        miny = -(self.npx + 1) * self.pxsize / 2
-        maxy = +(self.npx + 1) * self.pxsize / 2
+        self.ar /= 3600.  # arcsec to degree
 
-        xx = np.arange(minx, maxx, self.pxsize)
-        self.nx = xx.size
-        yy = np.arange(miny, maxy, self.pxsize)
-        self.ny = yy.size
+        if self.sp is not False:  # noraml projection
+            minx = -(self.npx + 1) * self.pxsize / 2
+            maxx = +(self.npx + 1) * self.pxsize / 2
+            miny = -(self.npx + 1) * self.pxsize / 2
+            maxy = +(self.npx + 1) * self.pxsize / 2
+            xx = np.arange(minx, maxx, self.pxsize)
+            yy = np.arange(miny, maxy, self.pxsize)
+        else:  # we do real projection by transferring into RA, Dec
+            SC = SkyCoord(pos[:, 0]/s.cosmology.h*u.kpc, pos[:, 1]/s.cosmology.h*u.kpc,
+                          pos[:, 2]/s.cosmology.h*u.kpc, representation='cartesian')
+            SC = SC.transform_to('icrs')
+            pos[:, 0], pos[:, 1] = SC.ra.degree, SC.dec.degree
+
+            SC = SkyCoord(self.cc[0]/s.cosmology.h*u.kpc, self.cc[1]/s.cosmology.h*u.kpc,
+                          self.cc[2]/s.cosmology.h*u.kpc, representation='cartesian')
+            SC = SC.transform_to('icrs')
+            self.sp = [SC.ra.degree, SC.dec.degree]
+
+            minx = self.sp[0] - (self.npx + 1) * self.ar / 2.
+            maxx = self.sp[0] + (self.npx + 1) * self.ar / 2.
+            miny = self.sp[1] - (self.npx + 1) * self.ar / 2.
+            maxy = self.sp[1] + (self.npx + 1) * self.ar / 2.
+            xx = np.arange(minx, maxx, self.ar)
+            yy = np.arange(miny, maxy, self.ar)
 
         for i in d.keys():
             if self.flux:  # luminosity
                 self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0]
             else:  # ab mag
-                self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1],
-                                              bins=[xx, yy], weights=10**(d[i]/-2.5))[0]
+                self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=10**(d[i]/-2.5))[0]
 
         # Now grid the data
         # pmax, pmin = np.max(self.S_pos, axis=0), np.min(self.S_pos, axis=0)
@@ -178,6 +234,7 @@ class projection(object):
             self.outd["Metal"][ids] /= self.outd["Mass"][ids]
 
         self.pxsize /= s.cosmology.h  # Now pixel size in physical
+        self.cc = s.center/s.cosmology.h  # real center in the data
 
     def write_fits_image(self, fname, clobber=False):
         r"""
@@ -197,15 +254,62 @@ class projection(object):
 
         for i in self.outd.keys():
             hdu = pf.PrimaryHDU(self.outd[i].T)
+            hdu.header["SIMPLE"] = 'T'
+            hdu.header.comments["SIMPLE"] = 'conforms to FITS standard'
+            hdu.header["BITPIX"] = int(-32)
+            hdu.header.comments["BITPIX"] = '32 bit floating point'
+            hdu.header["NAXIS"] = int(2)
+            hdu.header["NAXIS1"] = int(self.outd[i].shape[0])
+            hdu.header["NAXIS2"] = int(self.outd[i].shape[1])
+            hdu.header["EXTEND"] = True
+            hdu.header.comments["EXTEND"] = 'Extensions may be present'
+            hdu.header["FILTER"] = i
+            hdu.header.comments["FILTER"] = 'filter used'
+            hdu.header["RADECSYS"] = 'ICRS    '
+            hdu.header.comments["RADECSYS"] = "International Celestial Ref. System"
+            hdu.header["CTYPE1"] = 'RA---TAN'
+            hdu.header.comments["CTYPE1"] = "Coordinate type"
+            hdu.header["CTYPE2"] = 'DEC--TAN'
+            hdu.header.comments["CTYPE2"] = "Coordinate type"
+            hdu.header["CUNIT1"] = 'deg     '
+            hdu.header.comments["CUNIT1"] = 'Units'
+            hdu.header["CUNIT2"] = 'deg     '
+            hdu.header.comments["CUNIT2"] = 'Units'
+            hdu.header["CRPIX1"] = float(self.npx/2.0)
+            hdu.header.comments["CRPIX1"] = 'X of reference pixel'
+            hdu.header["CRPIX2"] = float(self.npx/2.0)
+            hdu.header.comments["CRPIX2"] = 'Y of reference pixel'
+            hdu.header["CRVAL1"] = float(self.sp[0])
+            hdu.header.comments["CRVAL1"] = 'RA of reference pixel (deg)'
+            hdu.header["CRVAL2"] = float(self.sp[1])
+            hdu.header.comments["CRVAL2"] = 'Dec of reference pixel (deg)'
+            hdu.header["CD1_1"] = float(self.ar)
+            hdu.header.comments["CD1_1"] = 'RA deg per column pixel'
+            hdu.header["CD1_2"] = float(0)
+            hdu.header.comments["CD1_2"] = 'RA deg per row pixel'
+            hdu.header["CD2_1"] = float(0)
+            hdu.header.comments["CD1_1"] = 'Dec deg per column pixel'
+            hdu.header["CD2_2"] = float(-self.ar)
+            hdu.header.comments["CD1_2"] = 'Dec deg per row pixel'
+
             hdu.header["RCVAL1"] = float(self.cc[0])
+            hdu.header.comments["RCVAL1"] = 'Real center X of the data'
             hdu.header["RCVAL2"] = float(self.cc[1])
+            hdu.header.comments["RCVAL2"] = 'Real center Y of the data'
+            hdu.header["RCVAL3"] = float(self.cc[2])
+            hdu.header.comments["RCVAL3"] = 'Real center Z of the data'
             hdu.header["UNITS"] = "kpc"
+            hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
             hdu.header["ORAD"] = float(self.rr)
+            hdu.header.comments["ORAD"] = 'Radius for cutting the object'
             hdu.header["REDSHIFT"] = float(self.z)
+            hdu.header.comments["REDSHIFT"] = 'The redshift of the object'
             hdu.header["PSIZE"] = float(self.pxsize)
-            if self.ar is None:
-                hdu.header["AGLRES"] = float(0.0)
-            else:
-                hdu.header["AGLRES"] = float(self.ar)
-            hdu.header["NOTE"] = ""
+            hdu.header.comments["PSIZE"] = 'The pixel size of the image in comoving'
+            hdu.header["AGLRES"] = float(self.ar*3600.)
+            hdu.header.comments["AGLRES"] = '\'observation\' angular resolution in arcsec'
+            hdu.header["ORIGIN"] = 'PymGal'
+            hdu.header["VERSION"] = version.version  # get_property('__version__')
+            hdu.header["DATE-OBS"] = Time.now().tt.isot
+            hdu.header["NOTE"] = self.note
             hdu.writeto(fname[:-5]+"-"+i+fname[-5:], clobber=clobber)

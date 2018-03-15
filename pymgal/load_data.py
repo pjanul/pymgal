@@ -81,6 +81,7 @@ class load_data(object):
                 (spos[:, 2] >= self.center[2] - self.radius) & \
                 (spos[:, 2] <= self.center[2] + self.radius)
             self.S_pos = spos[ids]  # - self.center
+            self.center = np.asarray(self.center)
         else:
             ids = np.ones(head[0][4], dtype=bool)
             self.S_pos = spos  # - np.mean(spos, axis=0)
