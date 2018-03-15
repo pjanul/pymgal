@@ -1,13 +1,10 @@
 """
-pymockgal is a package written primarily in Python. It is designed to mimic
+pymgal is a package written primarily in Python. It is designed to mimic
 observed galaxies from hydro-dynamical simulations.
 
 More details of the functions and models.
 """
 
-__author__ = 'Weiguang Cui'
-__email__ = 'cuiweiguang@gmail.com'
-__version__ = 'beta'
 
 # import numpy as np  # For modern purposes
 from pymgal.SSP_models import SSP_models
