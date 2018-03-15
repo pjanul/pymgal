@@ -273,8 +273,11 @@ class filters(object):
 
         vs = sspmod.vs[sspmod.met_name[0]]
         mag = {}
-
         shifted = vs / (1 + redshift)
+
+        interp = interp1d(vs, sspmod.get_seds(simd, Ncpu=Ncpu, dust_func=dust_func), axis=0,
+                          bounds_error=False, fill_value="extrapolate")
+
         for i in fn:
             if vega:
                 to_vega = self.vega_mag[i]
@@ -292,8 +295,6 @@ class filters(object):
                       " magnitude is assigned nan")
                 mag[i] = np.nan
 
-            interp = interp1d(vs, sspmod.get_seds(simd, Ncpu=Ncpu, dust_func=dust_func), axis=0,
-                              bounds_error=False, fill_value="extrapolate")
             if flux:
                 mag[i] = (1 + redshift) * simps(interp(self.f_vs[i] * (1 + redshift)).T *
                                                 self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]
