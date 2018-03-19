@@ -3,7 +3,7 @@ import astropy.units as u
 import re
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
-import version
+from pymgal import version
 # scipy must >= 0.17 to properly use this!
 # from scipy.stats import binned_statistic_2d
 

@@ -13,6 +13,7 @@ from pymgal.filters import filters
 from pymgal import utils
 from pymgal.projection import projection
 from pymgal import dusts
+from pymgal import version
 
 # ezsps = ezsps.ezsps
 # model = ezsps
