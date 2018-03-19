@@ -7,22 +7,23 @@ from scipy.interpolate import interp1d
 # import astro_filter_light
 import numpy as np
 import pyfits
-from multiprocessing import Process, cpu_count, Queue, freeze_support
+# from multiprocessing import Process, cpu_count, Queue, freeze_support
+import threading
 
-
-def worker(input, output):
-    for func, args in iter(input.get, 'STOP'):
-        result = calculate(func, args)
-        output.put(result)
-
-
-def calculate(func, args):
-    return func(*args)
-
-
-def fi(n1, n2, ages, seds, sage, smas):
-    f = interp1d(ages, seds, bounds_error=False, fill_value="extrapolate")
-    return n1, n2, f(sage) * smas
+# worker for multiprocessing
+# def worker(input, output):
+#     for func, args in iter(input.get, 'STOP'):
+#         result = calculate(func, args)
+#         output.put(result)
+#
+#
+# def calculate(func, args):
+#     return func(*args)
+#
+#
+# def fi(n1, n2, ages, seds, sage, smas):
+#     f = interp1d(ages, seds, bounds_error=False, fill_value="extrapolate")
+#     return n1, n2, f(sage) * smas
 
 
 class SSP_models(object):
@@ -364,14 +365,14 @@ class SSP_models(object):
             # self.vs = self.vs[sind]
             # self.seds = self.seds[sind, :]
 
-    def get_seds(self, simdata, Ncpu=None, dust_func=None, units='Fv'):
+    def get_seds(self, simdata, Ncpu=2, dust_func=None, units='Fv'):
         r"""
-        Seds = SSP_model(simdata, Ncpu=None, dust_func=None, units='Fv')
+        Seds = SSP_model(simdata, Ncpu=2, dust_func=None, units='Fv')
 
         Parameters
         ----------
         simudata   : Simulation data read from load_data
-        Ncpu       : The number of CPUs for parallel interpolation
+        Ncpu       : The number of CPUs for parallel interpolation, default, 1
         dust_func  : dust function.
         units      : The units for retruned SEDS. Default: 'Fv'
 
@@ -398,70 +399,87 @@ class SSP_models(object):
             mids = np.interp(simdata.S_metal, self.metals, np.arange(self.nmets))
             mids = np.int32(np.round(mids))
 
+        # threading parallel function
+        lock = threading.Lock()
+
+        def worker(met, idn, Ni, Ne):
+            f = interp1d(self.ages[met], self.seds[met], bounds_error=False, fill_value="extrapolate")
+            tmpd = f(simdata.S_age[idn[Ni:Ne]]) * simdata.S_mass[idn[Ni:Ne]]
+            lock.acquire()
+            try:
+                seds[:, idn[Ni:Ne]] = tmpd
+            finally:
+                lock.release()
+
         for i, metmodel in enumerate(self.met_name):
-            # f = interp1d(self.ages[metmodel], self.seds[metmodel],
-            #              bounds_error=False, fill_value="extrapolate")
+            print('Interpolating: ', metmodel)
 
             if self.nmets > 1:
                 ids = np.where(mids == i)[0]
             else:
                 ids = np.ones(simdata.S_metal.size, dtype=np.bool)
 
-            # parallel
-            freeze_support()
-            if Ncpu is None:
-                NUMBER_OF_PROCESSES = cpu_count()
-            else:
-                NUMBER_OF_PROCESSES = Ncpu
+            # threading parallel
+            Ns = np.int32(ids.size / Ncpu)
+            Lst = np.arange(0, ids.size, Ns)
+            Lst = np.append(Lst, ids.size)
+            threads = []
+            for j in range(Lst.size-1):
+                t = threading.Thread(target=worker, args=(metmodel, ids, Lst[j], Lst[j+1]))
+                threads.append(t)
+                t.start()
+            t.join()
 
-            Ns = 2000
-            # Number of total Tasks, control the size of passing arrays
-            N = np.int32(ids.size / Ns)
-            if N < NUMBER_OF_PROCESSES:
-                N = NUMBER_OF_PROCESSES
-                Ns = np.int32(ids.size / N)
+            # multiprocessing parallel
+            # freeze_support()
+            # if Ncpu is None:
+            #     NUMBER_OF_PROCESSES = cpu_count()
+            # else:
+            #     NUMBER_OF_PROCESSES = Ncpu
+            #
+            # Ns = 2000
+            # # Number of total Tasks, control the size of passing arrays
+            # N = np.int32(ids.size / Ns)
+            # if N < NUMBER_OF_PROCESSES:
+            #     N = NUMBER_OF_PROCESSES
+            #     Ns = np.int32(ids.size / N)
+            #
+            # # Create queues
+            # task_queue = Queue()
+            # done_queue = Queue()
+            #
+            # Tasks = [(fi, (i * Ns, (i + 1) * Ns, self.ages[metmodel], self.seds[metmodel],
+            #                simdata.S_age[ids][i * Ns:(i + 1) * Ns],
+            #                simdata.S_mass[ids][i * Ns:(i + 1) * Ns])) for i in range(N)]
+            # if ids.size - N * Ns > 0:
+            #     Tasks.append((fi, (N * Ns, ids.size, self.ages[metmodel], self.seds[metmodel],
+            #                        simdata.S_age[ids][N * Ns:ids.size],
+            #                        simdata.S_mass[ids][N * Ns:ids.size])))
+            #
+            # # Submit tasks
+            # for task in Tasks:
+            #     task_queue.put(task)
+            #
+            # # Start worker processes
+            # for i in range(NUMBER_OF_PROCESSES):
+            #     Process(target=worker, args=(task_queue, done_queue)).start()
+            #
+            # # Get results
+            # for i in range(len(Tasks)):
+            #     n1, n2, data = done_queue.get()
+            #     seds[:, ids[n1:n2]] = data
+            #
+            # # Tell child processes to stop
+            # for i in range(NUMBER_OF_PROCESSES):
+            #     task_queue.put('STOP')
 
-            # Create queues
-            task_queue = Queue()
-            done_queue = Queue()
-
-            Tasks = [(fi, (i * Ns, (i + 1) * Ns, self.ages[metmodel], self.seds[metmodel],
-                           simdata.S_age[ids][i * Ns:(i + 1) * Ns],
-                           simdata.S_mass[ids][i * Ns:(i + 1) * Ns])) for i in range(N)]
-            if ids.size - N * Ns > 0:
-                Tasks.append((fi, (N * Ns, ids.size, self.ages[metmodel], self.seds[metmodel],
-                                   simdata.S_age[ids][N * Ns:ids.size],
-                                   simdata.S_mass[ids][N * Ns:ids.size])))
-
-            # Submit tasks
-            for task in Tasks:
-                task_queue.put(task)
-
-            # Start worker processes
-            for i in range(NUMBER_OF_PROCESSES):
-                Process(target=worker, args=(task_queue, done_queue)).start()
-
-            # Get results
-            for i in range(len(Tasks)):
-                n1, n2, data = done_queue.get()
-                seds[:, ids[n1:n2]] = data
-
-            # Tell child processes to stop
-            for i in range(NUMBER_OF_PROCESSES):
-                task_queue.put('STOP')
+            # single cpu
+            # f = interp1d(self.ages[metmodel], self.seds[metmodel],
+            #              bounds_error=False, fill_value="extrapolate")
+            # seds[:, ids] = f(simdata.S_age[ids]) * simdata.S_mass[ids]
 
             if dust_func is not None:
                 seds[:, ids] *= dust_func(simdata.S_age[ids], self.ls[metmodel])
-            #     seds[:, ids] = f(simdata.S_age[ids]) * simdata.S_mass[ids]
-            # else:
-                # seds[:, ids] = f(simdata.S_age[ids]) * simdata.S_mass[ids] * \
-                #     dust_func(simdata.S_age[ids], self.ls[metmodel])
-
-        # if simdata.grid_mass is not None:
-        #     seds = binned_statistic_2d(simdata.S_pos[:, 0], simdata.S_pos[:, 1],
-        #                                values=seds,
-        #                                bins=[simdata.nx, simdata.nx],
-        #                                statistic='sum')[0]
 
         units = units.lower()
         if units == 'jy':

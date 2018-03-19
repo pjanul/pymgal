@@ -288,9 +288,9 @@ class projection(object):
             hdu.header["CD1_2"] = float(0)
             hdu.header.comments["CD1_2"] = 'RA deg per row pixel'
             hdu.header["CD2_1"] = float(0)
-            hdu.header.comments["CD1_1"] = 'Dec deg per column pixel'
-            hdu.header["CD2_2"] = float(-self.ar)
-            hdu.header.comments["CD1_2"] = 'Dec deg per row pixel'
+            hdu.header.comments["CD2_1"] = 'Dec deg per column pixel'
+            hdu.header["CD2_2"] = float(self.ar)
+            hdu.header.comments["CD2_2"] = 'Dec deg per row pixel'
 
             hdu.header["RCVAL1"] = float(self.cc[0])
             hdu.header.comments["RCVAL1"] = 'Real center X of the data'
