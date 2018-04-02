@@ -68,7 +68,7 @@ class load_data(object):
         self.cosmology = FlatLambdaCDM(head[-1] * 100, head[-3])
         self.currenta = head[2]
         self.redshift = head[3]
-        self.Uage = self.cosmology.age(self.redshift)
+        self.Uage = self.cosmology.age(self.redshift).value
         self.z = head[3] if head[3] > 0 else 0.0
         spos = readsnapsgl(filename, "POS ", ptype=4, quiet=True)
         if (self.center is not None) and (self.radius is not None):
@@ -87,9 +87,9 @@ class load_data(object):
             self.S_pos = spos  # - np.mean(spos, axis=0)
             self.center = np.mean(spos, axis=0)
         age = readsnapsgl(filename, "AGE ", quiet=True)[:head[0][4]][ids]
-        age = self.Uage - self.cosmology.age(1. / age - 1)
+        age = self.Uage - self.cosmology.age(1. / age - 1).value
         age[age < 0] = 0  # remove negative ages
-        self.S_age = age.value * 1.0e9  # in yrs
+        self.S_age = age * 1.0e9  # in yrs
         self.S_mass = readsnapsgl(filename, "MASS", ptype=4, quiet=True)[
             ids] * 1.0e10 / head[-1]  # in M_sun
         self.S_metal = readsnapsgl(filename, "Z   ", ptype=4, nmet=nmetal, quiet=True)
