@@ -213,8 +213,11 @@ class projection(object):
             yy = np.arange(miny, maxy, self.ar)
 
         for i in d.keys():
-            if self.flux.lower() != 'magnitude':  # luminosity
+            if self.flux.lower() == 'luminosity':  # luminosity
                 self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0]
+            elif self.flux.lower() == 'flux':
+                self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy],
+                                              weights=d[i]*100./s.cosmology.luminosity_distance(self.z).to('pc').value**2)[0]
             else:  # ab mag
                 self.outd[i] = -2.5*np.log10(np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=10**(d[i]/-2.5))[0])
 
@@ -235,7 +238,7 @@ class projection(object):
         self.pxsize /= s.cosmology.h  # Now pixel size in physical
         self.cc = s.center/s.cosmology.h  # real center in the data
 
-    def write_fits_image(self, fname, clobber=False):
+    def write_fits_image(self, fname, overwrite=False):
         r"""
         Generate a image by binning X-ray counts and write it to a FITS file.
 
@@ -243,7 +246,7 @@ class projection(object):
         ----------
         imagefile : string
             The name of the image file to write.
-        clobber : boolean, optional
+        overwrite : boolean, optional
             Set to True to overwrite a previous file.
         """
         import astropy.io.fits as pf
@@ -300,7 +303,7 @@ class projection(object):
             hdu.header["UNITS"] = "kpc"
             hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
             hdu.header["PIXVAL"] = self.flux
-            hdu.header.comments["PIXVAL"] = 'Pixel value in flux[ergs/s/cm^2], luminosity[ergs/s] or magnitude.'
+            hdu.header.comments["PIXVAL"] = 'in flux[ergs/s/cm^2], lumi[ergs/s] or magnitude.'
             hdu.header["ORAD"] = float(self.rr)
             hdu.header.comments["ORAD"] = 'Radius for cutting the object'
             hdu.header["REDSHIFT"] = float(self.z)

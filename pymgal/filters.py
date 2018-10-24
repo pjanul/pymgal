@@ -286,10 +286,10 @@ class filters(object):
 
         if rest_frame:
             vsn = vs
-            interp = interp1d(vs, sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units=unt), axis=0,
+            interp = interp1d(vs, sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv'), axis=0,
                               bounds_error=False, fill_value="extrapolate")
         else:
-            vsn, sedn = sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units=unt)
+            vsn, sedn = sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv')
             interp = interp1d(vsn, sedn, axis=0, bounds_error=False, fill_value="extrapolate")
         print("Interpolation for the SEDs are done.")
 
@@ -314,7 +314,9 @@ class filters(object):
                       " magnitude is assigned nan")
                 mag[i] = np.nan
 
-            mag[i] = simps(interp(self.f_vs[i]).T * self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]
+            mag[i] = simps(interp(self.f_vs[i]).T * self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]  # normalized Flux
+            if unit.lower() == 'Flux':
+                mag[i] /= 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
             if unit.lower() == 'magnitude':
                 mag[i] = -2.5 * np.log10(mag[i]) + app + to_vega + to_solar
         return mag
