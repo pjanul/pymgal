@@ -34,3 +34,41 @@ class charlot_fall(object):
             taus[m] = self.tau2
 
         return np.exp(-1.0 * taus * (ls1 / 5500.0)**-0.7)
+
+class calzetti(object):
+    """ callable-object implementation of the Calzetti et al. (2000) dust law """
+    av = 0.0
+    rv = 0.0
+    ebv = 0.0
+    esbv = 0.0
+
+    def __init__(self, av=1.0, rv=4.05):
+        """ dust_obj = calzetti( av=1.0, rv=4.05 )
+		Return a callable object for returning the dimming factor as a function of age
+		for a Calzetti et al. (2000) dust law.  The dimming is:
+		
+		 """
+
+        self.av = av
+        self.rv = rv
+        self.ebv = self.av / self.rv
+        self.esbv = self.ebv * 0.44
+
+    def __call__(self, ts, ls):
+
+        # calzetti was fit in microns...
+        ls = utils.convert_length(np.asarray(ls), incoming='a', outgoing='um')
+
+        ks = np.zeros(ls.size)
+        s = ls < .63
+        if s.any():
+            ks[s] = 2.659 * (-2.156 + 1.509 / ls[s] - 0.198 / ls[s]**2.0 +
+                             0.011 / ls[s]**3.0) + self.rv
+        l = ~s
+        if l.any(): ks[l] = 2.659 * (-1.857 + 1.040 / ls[l]) + self.rv
+
+        # calculate dimming factor as a function of lambda
+        factors = 10.0**(-0.4 * self.esbv * ks)
+
+        # need to return an array of shape (nls,nts).  Therefore, repeat
+return factors.reshape((ls.size, 1)).repeat(len(ts), axis=1)

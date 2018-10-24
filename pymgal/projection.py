@@ -45,7 +45,7 @@ class projection(object):
                 Default: [194.95, 27.98], Coma' position.
                 If [x,y,z] (len(SP) == 3) of the Earth position in the pos coordinate is given,
                 The pos - [x,y,z] are taken as the J2000 3D coordinates and converted into RA, DEC.
-    flux    : is the input wdata in luminosity/flux? Default: False, assume in ab mag.
+    unit    : is the input wdata in luminosity, flux or magnitude? Default: flux, assume in ab mag.
                 Set this to true if particles' luminosity are given in wdata.
     outmas  : do you want to out put stellar mass? Default: False.
                 If True, the stellar mass in each pixel are saved.
@@ -60,12 +60,12 @@ class projection(object):
 
     Example
     -------
-    Pdata = pymgal.projection(part_lum, simu_data, npx=1024, flux=Ture)
+    Pdata = pymgal.projection(part_lum, simu_data, npx=1024, unit='flux')
     Pdata.write_fits_image("filename.fits")
     """
 
     def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, zthick=None,
-                 SP=[194.95, 27.98], flux=False, outmas=False, outage=False, outmet=False,
+                 SP=[194.95, 27.98], unit='flux', outmas=False, outage=False, outmet=False,
                  Note='None'):
 
         self.axis = axis
@@ -75,7 +75,6 @@ class projection(object):
             self.z = simd.z
         else:
             self.z = redshift
-        self.flux = flux
 
         self.pxsize = 0.
         if len(SP) == 2:
@@ -87,7 +86,7 @@ class projection(object):
         else:
             raise ValueError("SP length should be either 2 or 3!")
         self.rr = simd.radius
-        self.flux = flux
+        self.flux = unit
         self.omas = outmas
         self.oage = outage
         self.omet = outmet
@@ -214,10 +213,10 @@ class projection(object):
             yy = np.arange(miny, maxy, self.ar)
 
         for i in d.keys():
-            if self.flux:  # luminosity
+            if self.flux.lower() != 'magnitude':  # luminosity
                 self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0]
             else:  # ab mag
-                self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=10**(d[i]/-2.5))[0]
+                self.outd[i] = -2.5*np.log10(np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=10**(d[i]/-2.5))[0])
 
         # Now grid the data
         # pmax, pmin = np.max(self.S_pos, axis=0), np.min(self.S_pos, axis=0)
@@ -300,6 +299,8 @@ class projection(object):
             hdu.header.comments["RCVAL3"] = 'Real center Z of the data'
             hdu.header["UNITS"] = "kpc"
             hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
+            hdu.header["PIXVAL"] = self.flux
+            hdu.header.comments["PIXVAL"] = 'Value of each pixel in unit of either flux [ergs/s/cm^2], luminosity [ergs/s] or magnitude.'
             hdu.header["ORAD"] = float(self.rr)
             hdu.header.comments["ORAD"] = 'Radius for cutting the object'
             hdu.header["REDSHIFT"] = float(self.z)

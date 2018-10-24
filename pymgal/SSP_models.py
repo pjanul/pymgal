@@ -28,7 +28,7 @@ import threading
 
 class SSP_models(object):
     r""" Load simple stellar population models.
-    model = SSP_model(model_file, IMF="chab", metal=[], is_ised=False, is_fits=False,
+    model = SSP_model(model_file, IMF="chab", metal=[list], is_ised=False, is_fits=False,
     is_ascii=False, has_masses=False, units='a', age_units='gyrs', nsample=None)
 
     Parameters
@@ -41,7 +41,7 @@ class SSP_models(object):
                  Specify one of these IMF names: "chab", "krou" or "salp"
 
     metal      : The metallicity of the model. Specify at here if you only
-                 want one or several metallicity included. Default: [],
+                 want one or several metallicity included. Default: empyt list,
                  all metallicity models are included to do interpolation.
 
     is_ised    : Is the model file an ised file? Default: False
@@ -365,7 +365,7 @@ class SSP_models(object):
             # self.vs = self.vs[sind]
             # self.seds = self.seds[sind, :]
 
-    def get_seds(self, simdata, Ncpu=2, dust_func=None, units='Fv'):
+    def get_seds(self, simdata, Ncpu=2, rest_frame=False, dust_func=None, units='Fv'):
         r"""
         Seds = SSP_model(simdata, Ncpu=2, dust_func=None, units='Fv')
 
@@ -375,7 +375,7 @@ class SSP_models(object):
         Ncpu       : The number of CPUs for parallel interpolation, default, 1
         dust_func  : dust function.
         units      : The units for retruned SEDS. Default: 'Fv'
-
+        rest_frame : Do you want the SED in rest_frame? default: False.
         Get SEDS for the simulated star particles
 
         Available output units are (case insensitive):
@@ -430,70 +430,44 @@ class SSP_models(object):
                 t.start()
             t.join()
 
-            # multiprocessing parallel
-            # freeze_support()
-            # if Ncpu is None:
-            #     NUMBER_OF_PROCESSES = cpu_count()
-            # else:
-            #     NUMBER_OF_PROCESSES = Ncpu
-            #
-            # Ns = 2000
-            # # Number of total Tasks, control the size of passing arrays
-            # N = np.int32(ids.size / Ns)
-            # if N < NUMBER_OF_PROCESSES:
-            #     N = NUMBER_OF_PROCESSES
-            #     Ns = np.int32(ids.size / N)
-            #
-            # # Create queues
-            # task_queue = Queue()
-            # done_queue = Queue()
-            #
-            # Tasks = [(fi, (i * Ns, (i + 1) * Ns, self.ages[metmodel], self.seds[metmodel],
-            #                simdata.S_age[ids][i * Ns:(i + 1) * Ns],
-            #                simdata.S_mass[ids][i * Ns:(i + 1) * Ns])) for i in range(N)]
-            # if ids.size - N * Ns > 0:
-            #     Tasks.append((fi, (N * Ns, ids.size, self.ages[metmodel], self.seds[metmodel],
-            #                        simdata.S_age[ids][N * Ns:ids.size],
-            #                        simdata.S_mass[ids][N * Ns:ids.size])))
-            #
-            # # Submit tasks
-            # for task in Tasks:
-            #     task_queue.put(task)
-            #
-            # # Start worker processes
-            # for i in range(NUMBER_OF_PROCESSES):
-            #     Process(target=worker, args=(task_queue, done_queue)).start()
-            #
-            # # Get results
-            # for i in range(len(Tasks)):
-            #     n1, n2, data = done_queue.get()
-            #     seds[:, ids[n1:n2]] = data
-            #
-            # # Tell child processes to stop
-            # for i in range(NUMBER_OF_PROCESSES):
-            #     task_queue.put('STOP')
-
-            # single cpu
-            # f = interp1d(self.ages[metmodel], self.seds[metmodel],
-            #              bounds_error=False, fill_value="extrapolate")
-            # seds[:, ids] = f(simdata.S_age[ids]) * simdata.S_mass[ids]
-
             if dust_func is not None:
                 seds[:, ids] *= dust_func(simdata.S_age[ids], self.ls[metmodel])
 
         units = units.lower()
-        if units == 'jy':
-            return seds / 1e-23
-        if units == 'fv':
-            return seds
-        if units == 'fl':
-            seds *= (self.vs[self.met_name[0]].reshape(self.nvs[0], 1)
-                     )**2.0 / utils.convert_length(utils.c, outgoing='a')
-            return seds
+        if (rest_frame) or (simdata.z <= 0.):
+            if units == 'jy':
+                return seds / 1e-23
+            if units == 'fv':
+                return seds
+            if units == 'fl':
+                return seds * (self.vs[self.met_name[0]].reshape(self.nvs[0], 1))**2.0 / utils.convert_length(utils.c, outgoing='a')
 
-        seds *= self.vs[self.met_name[0]].reshape(self.nvs[0], 1)
-        if units == 'flux':
-            return seds
-        if units == 'luminosity':
-            return seds * 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
-        raise NameError('Units of %s are unrecognized!' % units)
+            seds *= self.vs[self.met_name[0]].reshape(self.nvs[0], 1)
+            if units == 'flux':
+                return seds
+            if units == 'luminosity':
+                return seds * 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
+            raise NameError('Units of %s are unrecognized!' % units)
+        else:  # sed in observer's frame
+            vs = np.copy(self.vs[self.met_name[0]])
+            if units == 'jy':
+                seds = (seds / 1e-23) * (1 + simdata.z)
+                vs /= (1.0 + simdata.z)
+            if units == 'fv':
+                seds =  seds * (1 + simdata.z)
+                vs /= (1.0 + simdata.z)
+            if units == 'fl':  # reverse if units are Fl so that frequencies are increasing in wavelength
+                vs = utils.to_lambda(vs[::-1], units='a')
+                vs = vs * (1.0 + simdata.z)
+                seds = seds * (vs.reshape(self.nvs[0], 1))**2.0 / utils.convert_length(utils.c, outgoing='a')
+                sed = sed[::-1] / (1 + simdata.z)
+            if units == 'flux':
+                vs = vs * (1.0 + simdata.z)
+                seds *= vs.reshape(self.nvs[0], 1)
+
+            if units == 'luminosity':  # bolometric luminosity
+                vs = vs * (1.0 + simdata.z)
+                return vs, seds * vs.reshape(self.nvs[0], 1) * 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
+            else:
+                return vs, sed * 10.0**(-0.4 * 5.* np.log10(simdata.cosmology.luminosity_distance(simdata.z).to('pc').value/10.))
+            raise NameError('Units of %s are unrecognized!' % units)
