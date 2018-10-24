@@ -6,7 +6,7 @@ from scipy.interpolate import interp1d
 # import collections
 # import astro_filter_light
 import numpy as np
-import pyfits
+import astropy.io.fits as pyfits
 # from multiprocessing import Process, cpu_count, Queue, freeze_support
 import threading
 

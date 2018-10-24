@@ -66,7 +66,7 @@ def setup_package():
         description="A Package for Mock Observations in optical bands",
         long_description=read('README.md'),
         packages=find_packages(),
-        requires=['numpy', 'pyfits', 'scipy', 'astropy'],
+        requires=['numpy', 'scipy', 'astropy'],
         package_data={
             '': ['*.fits',
                  '*README*',

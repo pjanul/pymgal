@@ -246,7 +246,7 @@ class projection(object):
         clobber : boolean, optional
             Set to True to overwrite a previous file.
         """
-        import pyfits as pf
+        import astropy.io.fits as pf
 
         if fname[-5:] != ".fits":
             fname = fname + ".fits"

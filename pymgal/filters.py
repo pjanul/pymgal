@@ -1,6 +1,6 @@
 import os
 import numpy as np
-import pyfits
+import astropy.io.fits as pyfits
 from pymgal import utils
 from scipy.integrate import simps
 from scipy.interpolate import interp1d
