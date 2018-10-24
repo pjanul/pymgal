@@ -427,8 +427,10 @@ class SSP_models(object):
             for j in range(Lst.size-1):
                 t = threading.Thread(target=worker, args=(metmodel, ids, Lst[j], Lst[j+1]))
                 threads.append(t)
+            for t in threads:
                 t.start()
-            t.join()
+            for t in threads:
+                t.join()
 
             if dust_func is not None:
                 seds[:, ids] *= dust_func(simdata.S_age[ids], self.ls[metmodel])

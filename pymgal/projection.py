@@ -219,7 +219,8 @@ class projection(object):
                 self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy],
                                               weights=d[i]*100./s.cosmology.luminosity_distance(self.z).to('pc').value**2)[0]
             else:  # ab mag
-                self.outd[i] = -2.5*np.log10(np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=10**(d[i]/-2.5))[0])
+                self.outd[i] = np.ma.log10(np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=10**(d[i]/-2.5))[0])
+                self.outd[i] = -2.5*self.outd[i].filled(self.outd[i].min()/2.)
 
         # Now grid the data
         # pmax, pmin = np.max(self.S_pos, axis=0), np.min(self.S_pos, axis=0)
@@ -303,7 +304,7 @@ class projection(object):
             hdu.header["UNITS"] = "kpc"
             hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
             hdu.header["PIXVAL"] = self.flux
-            hdu.header.comments["PIXVAL"] = 'in flux[ergs/s/cm^2], lumi[ergs/s] or magnitude.'
+            hdu.header.comments["PIXVAL"] = 'in flux[ergs/s/cm^2], lumi[ergs/s] or mag.'
             hdu.header["ORAD"] = float(self.rr)
             hdu.header.comments["ORAD"] = 'Radius for cutting the object'
             hdu.header["REDSHIFT"] = float(self.z)
