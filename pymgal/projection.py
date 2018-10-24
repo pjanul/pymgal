@@ -316,4 +316,4 @@ class projection(object):
             hdu.header["VERSION"] = version.version  # get_property('__version__')
             hdu.header["DATE-OBS"] = Time.now().tt.isot
             hdu.header["NOTE"] = self.note
-            hdu.writeto(fname[:-5]+"-"+i+fname[-5:], clobber=clobber)
+            hdu.writeto(fname[:-5]+"-"+i+fname[-5:], overwrite=overwrite)
