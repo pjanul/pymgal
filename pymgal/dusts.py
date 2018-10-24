@@ -46,7 +46,7 @@ class calzetti(object):
         """ dust_obj = calzetti( av=1.0, rv=4.05 )
 		Return a callable object for returning the dimming factor as a function of age
 		for a Calzetti et al. (2000) dust law.  The dimming is:
-		
+
 		 """
 
         self.av = av
@@ -71,4 +71,4 @@ class calzetti(object):
         factors = 10.0**(-0.4 * self.esbv * ks)
 
         # need to return an array of shape (nls,nts).  Therefore, repeat
-return factors.reshape((ls.size, 1)).repeat(len(ts), axis=1)
+        return factors.reshape((ls.size, 1)).repeat(len(ts), axis=1)
