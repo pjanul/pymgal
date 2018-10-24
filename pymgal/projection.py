@@ -300,7 +300,7 @@ class projection(object):
             hdu.header["UNITS"] = "kpc"
             hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
             hdu.header["PIXVAL"] = self.flux
-            hdu.header.comments["PIXVAL"] = 'Value of each pixel in unit of either flux [ergs/s/cm^2], luminosity [ergs/s] or magnitude.'
+            hdu.header.comments["PIXVAL"] = 'Pixel value in flux[ergs/s/cm^2], luminosity[ergs/s] or magnitude.'
             hdu.header["ORAD"] = float(self.rr)
             hdu.header.comments["ORAD"] = 'Radius for cutting the object'
             hdu.header["REDSHIFT"] = float(self.z)
