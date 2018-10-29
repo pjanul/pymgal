@@ -246,8 +246,8 @@ class projection(object):
             The name of the image file to write.
         overwrite : boolean, optional
             Set to True to overwrite a previous file.
-        comments  : The comments in str will be put into the fit file header. Defualt: None
-
+        comments  : The comments in str will be put into the fit file header. Defualt: 'None'
+                    It accepts str or list of str or tuple of str
         """
         import astropy.io.fits as pf
 
@@ -317,5 +317,11 @@ class projection(object):
             hdu.header["VERSION"] = version.version  # get_property('__version__')
             hdu.header.comments["VERSION"] = 'Version of the software'
             hdu.header["DATE-OBS"] = Time.now().tt.isot
-            hdu.header["COMMENT"] = comments
+            if isinstance(comments, type([])) or isinstance(comments, type(())):
+                for i in range(len(comments)):
+                    hdu.header["COMMENT"] = comments[i]
+            elif isinstance(comments, type("")) or isinstance(comments, type('')):
+                hdu.header["COMMENT"] = comments
+            else:
+                raise ValueError("Do not accept this comments type! Please use str or list")
             hdu.writeto(fname[:-5]+"-"+i+fname[-5:], overwrite=overwrite)
