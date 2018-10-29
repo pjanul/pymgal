@@ -53,7 +53,6 @@ class projection(object):
                 If True, the stellar age in each pixel are saved.
     outmet  : do you want to out put stellar metallicity (mass weighted)? Default: False.
                 If True, the stellar metallicity in each pixel are saved.
-    Note    : The comments in str will be put into the fit file header. Defualt: None
     Notes
     -----
 
@@ -65,8 +64,7 @@ class projection(object):
     """
 
     def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, zthick=None,
-                 SP=[194.95, 27.98], unit='flux', outmas=False, outage=False, outmet=False,
-                 Note='None'):
+                 SP=[194.95, 27.98], unit='flux', outmas=False, outage=False, outmet=False):
 
         self.axis = axis
         self.npx = npx
@@ -92,7 +90,6 @@ class projection(object):
         self.omet = outmet
         self.zthick = zthick
         self.outd = {}
-        self.note = Note
 
         # if not flux:
         #     if isinstance(data, type({})):
@@ -239,7 +236,7 @@ class projection(object):
         self.pxsize /= s.cosmology.h  # Now pixel size in physical
         self.cc = s.center/s.cosmology.h  # real center in the data
 
-    def write_fits_image(self, fname, overwrite=False):
+    def write_fits_image(self, fname, comments='None', overwrite=False):
         r"""
         Generate a image by binning X-ray counts and write it to a FITS file.
 
@@ -249,6 +246,8 @@ class projection(object):
             The name of the image file to write.
         overwrite : boolean, optional
             Set to True to overwrite a previous file.
+        comments  : The comments in str will be put into the fit file header. Defualt: None
+
         """
         import astropy.io.fits as pf
 
@@ -314,7 +313,9 @@ class projection(object):
             hdu.header["AGLRES"] = float(self.ar*3600.)
             hdu.header.comments["AGLRES"] = '\'observation\' angular resolution in arcsec'
             hdu.header["ORIGIN"] = 'PymGal'
+            hdu.header.comments["ORIGIN"] = 'Software for generating this mock image'
             hdu.header["VERSION"] = version.version  # get_property('__version__')
+            hdu.header.comments["VERSION"] = 'Version of the software'
             hdu.header["DATE-OBS"] = Time.now().tt.isot
-            hdu.header["NOTE"] = self.note
+            hdu.header["COMMENT"] = comments
             hdu.writeto(fname[:-5]+"-"+i+fname[-5:], overwrite=overwrite)
