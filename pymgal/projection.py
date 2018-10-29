@@ -318,8 +318,8 @@ class projection(object):
             hdu.header.comments["VERSION"] = 'Version of the software'
             hdu.header["DATE-OBS"] = Time.now().tt.isot
             if isinstance(comments, type([])) or isinstance(comments, type(())):
-                for i in range(len(comments)):
-                    hdu.header["COMMENT"] = comments[i]
+                for j in range(len(comments)):
+                    hdu.header["COMMENT"] = comments[j]
             elif isinstance(comments, type("")) or isinstance(comments, type('')):
                 hdu.header["COMMENT"] = comments
             else:
