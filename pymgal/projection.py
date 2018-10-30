@@ -319,7 +319,7 @@ class projection(object):
             hdu.header["DATE-OBS"] = Time.now().tt.isot
             if isinstance(comments, type([])) or isinstance(comments, type(())):
                 for j in range(len(comments)):
-                    hdu.header["COMMENT"] = comments[j]
+                    hdu.header["COMMENT"+str(j+1)] = comments[j]
             elif isinstance(comments, type("")) or isinstance(comments, type('')):
                 hdu.header["COMMENT"] = comments
             else:
