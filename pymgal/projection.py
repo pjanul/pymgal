@@ -291,7 +291,7 @@ class projection(object):
             hdu.header.comments["CD1_2"] = 'RA deg per row pixel'
             hdu.header["CD2_1"] = float(0)
             hdu.header.comments["CD2_1"] = 'Dec deg per column pixel'
-            hdu.header["CD2_2"] = float(self.ar)
+            hdu.header["CD2_2"] = float(-self.ar)
             hdu.header.comments["CD2_2"] = 'Dec deg per row pixel'
 
             hdu.header["RCVAL1"] = float(self.cc[0])
@@ -305,7 +305,7 @@ class projection(object):
             hdu.header["PIXVAL"] = self.flux
             hdu.header.comments["PIXVAL"] = 'in flux[ergs/s/cm^2], lumi[ergs/s] or mag.'
             hdu.header["ORAD"] = float(self.rr)
-            hdu.header.comments["ORAD"] = 'Radius for cutting the object'
+            hdu.header.comments["ORAD"] = 'Rcut for the image. Not R200 if not set to'
             hdu.header["REDSHIFT"] = float(self.z)
             hdu.header.comments["REDSHIFT"] = 'The redshift of the object'
             hdu.header["PSIZE"] = float(self.pxsize)
