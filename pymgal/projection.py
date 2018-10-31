@@ -32,8 +32,12 @@ class projection(object):
                 Default: "z"
     npx     : The pixel number of the grid for projection.
                 Type: int. Default: 512
-                A npx x npx image will be produced later.
+                A [npx, npx] image will be produced later.
+                It accept 'auto' parameter, which will automatically decide the pixel number to include all particles.
     AR      : Angular resolution. Type: arcsec. Default: None
+                If AR is None and npx is auto, we will force the npx to be 512
+                If AR is None, it will automatically recalculated in the code for output.
+                At z=0, no matter AR is set or not, AR is always assume at z = 0.05.
     redshift: The redshift of the object at. Default: None.
                 If None, redshift from simulation data will be used.
                 Maybe move to 0.01 if it is 0.
@@ -67,7 +71,10 @@ class projection(object):
                  SP=[194.95, 27.98], unit='flux', outmas=False, outage=False, outmet=False):
 
         self.axis = axis
-        self.npx = npx
+        if isinstance(npx, type("")) or isinstance(npx, type('')):
+            self.npx = npx.lower()
+        else:
+            self.npx = npx
         self.ar = AR
         if redshift is None:
             self.z = simd.z
@@ -83,7 +90,7 @@ class projection(object):
             self.cc = SP
         else:
             raise ValueError("SP length should be either 2 or 3!")
-        self.rr = simd.radius
+        self.rr = simd.radius/simd.cosmology.h  # to without h
         self.flux = unit
         self.omas = outmas
         self.oage = outage
@@ -173,6 +180,8 @@ class projection(object):
                 d[i] = d[i][ids]
 
         if self.ar is None:
+            if self.npx == 'auto':
+                self.npx = 512
             self.pxsize = np.min([pos[:, 0].max()-pos[:, 0].min(), pos[:, 1].max()-pos[:, 1].min()])/self.npx
             if self.z <= 0.0:
                 self.ar = self.pxsize / s.cosmology.h * s.cosmology.arcsec_per_kpc_comoving(0.05).value
@@ -182,6 +191,8 @@ class projection(object):
             if self.z <= 0.0:
                 self.z = 0.05
             self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_comoving(self.z).value * s.cosmology.h
+            if self.npx == 'auto':
+                self.npx = np.int32(2. * s.radius / self.pxsize)
         self.ar /= 3600.  # arcsec to degree
 
         if self.sp is not False:  # noraml projection
@@ -291,7 +302,7 @@ class projection(object):
             hdu.header.comments["CD1_2"] = 'RA deg per row pixel'
             hdu.header["CD2_1"] = float(0)
             hdu.header.comments["CD2_1"] = 'Dec deg per column pixel'
-            hdu.header["CD2_2"] = float(-self.ar)
+            hdu.header["CD2_2"] = float(self.ar)
             hdu.header.comments["CD2_2"] = 'Dec deg per row pixel'
 
             hdu.header["RCVAL1"] = float(self.cc[0])
@@ -304,7 +315,7 @@ class projection(object):
             hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
             hdu.header["PIXVAL"] = self.flux
             hdu.header.comments["PIXVAL"] = 'in flux[ergs/s/cm^2], lumi[ergs/s] or mag.'
-            hdu.header["ORAD"] = float(self.rr)
+            hdu.header["ORAD"] = float(self.rr/)
             hdu.header.comments["ORAD"] = 'Rcut for the image. Not R200 if not set to'
             hdu.header["REDSHIFT"] = float(self.z)
             hdu.header.comments["REDSHIFT"] = 'The redshift of the object'
