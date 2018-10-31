@@ -315,7 +315,7 @@ class projection(object):
             hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
             hdu.header["PIXVAL"] = self.flux
             hdu.header.comments["PIXVAL"] = 'in flux[ergs/s/cm^2], lumi[ergs/s] or mag.'
-            hdu.header["ORAD"] = float(self.rr/)
+            hdu.header["ORAD"] = float(self.rr)
             hdu.header.comments["ORAD"] = 'Rcut for the image. Not R200 if not set to'
             hdu.header["REDSHIFT"] = float(self.z)
             hdu.header.comments["REDSHIFT"] = 'The redshift of the object'
