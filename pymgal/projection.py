@@ -296,7 +296,7 @@ class projection(object):
             hdu.header.comments["CRVAL1"] = 'RA of reference pixel (deg)'
             hdu.header["CRVAL2"] = float(self.sp[1])
             hdu.header.comments["CRVAL2"] = 'Dec of reference pixel (deg)'
-            hdu.header["CD1_1"] = float(self.ar)
+            hdu.header["CD1_1"] = -float(self.ar)
             hdu.header.comments["CD1_1"] = 'RA deg per column pixel'
             hdu.header["CD1_2"] = float(0)
             hdu.header.comments["CD1_2"] = 'RA deg per row pixel'
