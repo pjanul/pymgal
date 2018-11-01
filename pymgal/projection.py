@@ -184,13 +184,13 @@ class projection(object):
                 self.npx = 512
             self.pxsize = np.min([pos[:, 0].max()-pos[:, 0].min(), pos[:, 1].max()-pos[:, 1].min()])/self.npx
             if self.z <= 0.0:
-                self.ar = self.pxsize / s.cosmology.h * s.cosmology.arcsec_per_kpc_comoving(0.05).value
+                self.ar = self.pxsize / s.cosmology.h * s.cosmology.arcsec_per_kpc_proper(0.05).value
             else:
-                self.ar = self.pxsize / s.cosmology.h * s.cosmology.arcsec_per_kpc_comoving(self.z).value
+                self.ar = self.pxsize / s.cosmology.h * s.cosmology.arcsec_per_kpc_proper(self.z).value
         else:
             if self.z <= 0.0:
                 self.z = 0.05
-            self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_comoving(self.z).value * s.cosmology.h
+            self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
             if self.npx == 'auto':
                 self.npx = np.int32(2. * s.radius / self.pxsize)
         self.ar /= 3600.  # arcsec to degree
