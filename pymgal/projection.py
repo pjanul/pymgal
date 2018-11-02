@@ -40,7 +40,7 @@ class projection(object):
                 At z=0, no matter AR is set or not, AR is always assume at z = 0.05.
     redshift: The redshift of the object at. Default: None.
                 If None, redshift from simulation data will be used.
-                Maybe move to 0.01 if it is 0.
+                Maybe move to 0.05 if it is 0.
     zthick  : The thickness in projection direction. Default: None.
                 If None, use all data from cutting region. Otherwise set a value in simulation
                 length unit (kpc/h normally), then a slice of data [center-zthick, center+zthick]
@@ -90,14 +90,14 @@ class projection(object):
             self.cc = SP
         else:
             raise ValueError("SP length should be either 2 or 3!")
-        self.rr = simd.radius/simd.cosmology.h / (1.+ simd.z)   # to physical
+        self.rr = simd.radius/simd.cosmology.h / (1.+ self.z)   # to physical
         self.flux = unit
         self.omas = outmas
         self.oage = outage
         self.omet = outmet
         self.zthick = zthick
         if zthick is not None:
-            self.zthick /= (simd.cosmology.h / (1.+ simd.z))
+            self.zthick /= (simd.cosmology.h / (1.+ self.z))
         self.outd = {}
 
         # if not flux:
@@ -116,9 +116,9 @@ class projection(object):
         """
         # ratation data points first
 
-        pos = np.copy(s.S_pos) / s.cosmology.h / (1.+ s.z)  # to physical
-        pos -= self.cc / s.cosmology.h / (1.+ s.z)
-        center = s.center / s.cosmology.h / (1.+ s.z)
+        pos = np.copy(s.S_pos) / s.cosmology.h / (1.+ self.z)  # to assumed physical
+        pos -= self.cc / s.cosmology.h / (1.+ self.z)
+        center = s.center / s.cosmology.h / (1.+ self.z)
 
         if isinstance(self.axis, type('')):
             if self.axis.lower() == 'y':  # x-z plane
