@@ -188,13 +188,13 @@ class projection(object):
             self.pxsize = np.min([pos[:, 0].max()-pos[:, 0].min(), pos[:, 1].max()-pos[:, 1].min()])/self.npx
 
             if self.z <= 0.0:
-                self.ar = self.pxsize / s.cosmology.h * s.cosmology.arcsec_per_kpc_proper(0.05).value
+                self.ar = self.pxsize * s.cosmology.arcsec_per_kpc_proper(0.05).value
             else:
-                self.ar = self.pxsize / s.cosmology.h * s.cosmology.arcsec_per_kpc_proper(self.z).value
+                self.ar = self.pxsize * s.cosmology.arcsec_per_kpc_proper(self.z).value
         else:
             if self.z <= 0.0:
                 self.z = 0.05
-            self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
+            self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value
             if self.npx == 'auto':
                 self.npx = np.int32(2. * self.rr / self.pxsize) + 1
             else:
@@ -209,13 +209,13 @@ class projection(object):
             xx = np.arange(minx, maxx, self.pxsize)
             yy = np.arange(miny, maxy, self.pxsize)
         else:  # we do real projection by transferring into RA, Dec
-            SC = SkyCoord(pos[:, 0]/s.cosmology.h*u.kpc, pos[:, 1]/s.cosmology.h*u.kpc,
-                          pos[:, 2]/s.cosmology.h*u.kpc, representation='cartesian')
+            SC = SkyCoord(pos[:, 0], pos[:, 1], pos[:, 2], unit='kpc',
+                          representation='cartesian')
             SC = SC.transform_to('icrs')
             pos[:, 0], pos[:, 1] = SC.ra.degree, SC.dec.degree
 
-            SC = SkyCoord(self.cc[0]/s.cosmology.h*u.kpc, self.cc[1]/s.cosmology.h*u.kpc,
-                          self.cc[2]/s.cosmology.h*u.kpc, representation='cartesian')
+            SC = SkyCoord(self.cc[0], self.cc[1], self.cc[2], unit='kpc',
+                          representation='cartesian')
             SC = SC.transform_to('icrs')
             self.sp = [SC.ra.degree, SC.dec.degree]
 
