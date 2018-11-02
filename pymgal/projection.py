@@ -95,7 +95,9 @@ class projection(object):
         self.omas = outmas
         self.oage = outage
         self.omet = outmet
-        self.zthick = zthick / simd.cosmology.h / (1.+ simd.z)
+        self.zthick = zthick
+        if zthick is not None:
+            self.zthick /= (simd.cosmology.h / (1.+ simd.z))
         self.outd = {}
 
         # if not flux:
@@ -194,9 +196,9 @@ class projection(object):
                 self.z = 0.05
             self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
             if self.npx == 'auto':
-                self.npx = np.int32(2. * self.rr / self.pxsize)
+                self.npx = np.int32(2. * self.rr / self.pxsize) + 1
             else:
-                self.rr = self.npx * self.pxsize
+                self.rr = (self.npx-1) * self.pxsize / 2.
         self.ar /= 3600.  # arcsec to degree
 
         if self.sp is not False:  # noraml projection
