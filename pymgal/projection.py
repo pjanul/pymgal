@@ -90,12 +90,12 @@ class projection(object):
             self.cc = SP
         else:
             raise ValueError("SP length should be either 2 or 3!")
-        self.rr = simd.radius/simd.cosmology.h  # to without h
+        self.rr = simd.radius/simd.cosmology.h / (1.+ simd.z)   # to physical
         self.flux = unit
         self.omas = outmas
         self.oage = outage
         self.omet = outmet
-        self.zthick = zthick
+        self.zthick = zthick / simd.cosmology.h / (1.+ simd.z)
         self.outd = {}
 
         # if not flux:
@@ -114,25 +114,26 @@ class projection(object):
         """
         # ratation data points first
 
-        pos = np.copy(s.S_pos)
-        pos -= self.cc
+        pos = np.copy(s.S_pos) / s.cosmology.h / (1.+ s.z)  # to physical
+        pos -= self.cc / s.cosmology.h / (1.+ s.z)
+        center = s.center / s.cosmology.h / (1.+ s.z)
 
         if isinstance(self.axis, type('')):
             if self.axis.lower() == 'y':  # x-z plane
                 pos = pos[:, [0, 2, 1]]
                 if self.sp is False:
-                    self.cc[0], self.cc[1], self.cc[2] = s.center[0] - self.cc[0],\
-                        s.center[2] - self.cc[2], s.center[1] - self.cc[1]
+                    self.cc[0], self.cc[1], self.cc[2] = center[0] - self.cc[0],\
+                        center[2] - self.cc[2], center[1] - self.cc[1]
             elif self.axis.lower() == 'x':  # y - z plane
                 pos = pos[:, [1, 2, 0]]
                 if self.sp is False:
-                    self.cc[0], self.cc[1], self.cc[2] = s.center[1] - self.cc[1],\
-                        s.center[2] - self.cc[2], s.center[0] - self.cc[0]
+                    self.cc[0], self.cc[1], self.cc[2] = center[1] - self.cc[1],\
+                        center[2] - self.cc[2], center[0] - self.cc[0]
             else:
                 if self.axis.lower() != 'z':  # project to xy plane
                     raise ValueError("Do not accept this value %s for projection" % self.axis)
                 if self.sp is False:
-                    self.cc = s.center - self.cc
+                    self.cc = center - self.cc
         elif isinstance(self.axis, type([])):
             if len(self.axis) == 3:
                 sa, ca = np.sin(self.axis[0] / 180. *
@@ -149,7 +150,7 @@ class projection(object):
                      [-sb,     cb * sa,                ca * cb]], dtype=np.float64)
                 pos = np.dot(pos, Rxyz)
                 if self.sp is False:
-                    self.cc = np.dot(s.center - self.cc, Rxyz)
+                    self.cc = np.dot(center - self.cc, Rxyz)
             else:
                 raise ValueError(
                     "Do not accept this value %s for projection" % self.axis)
@@ -158,12 +159,12 @@ class projection(object):
                 normed_axis = self.axis/np.sqrt(np.sum(self.axis**2))
                 pos = np.cross(normed_axis, np.cross(pos, normed_axis))
                 if self.sp is False:
-                    self.cc = np.cross(normed_axis, np.cross(s.center - self.cc, normed_axis))
+                    self.cc = np.cross(normed_axis, np.cross(center - self.cc, normed_axis))
             elif len(self.axis.shape) == 2:
                 if self.axis.shape[0] == self.axis.shape[1] == 3:
                     pos = np.dot(pos, self.axis)
                     if self.sp is False:
-                        self.cc = np.dot(s.center - self.cc, self.axis)
+                        self.cc = np.dot(center - self.cc, self.axis)
                 else:
                     raise ValueError("Axis shape is not 3x3: ", self.axis.shape)
         else:
@@ -183,6 +184,7 @@ class projection(object):
             if self.npx == 'auto':
                 self.npx = 512
             self.pxsize = np.min([pos[:, 0].max()-pos[:, 0].min(), pos[:, 1].max()-pos[:, 1].min()])/self.npx
+
             if self.z <= 0.0:
                 self.ar = self.pxsize / s.cosmology.h * s.cosmology.arcsec_per_kpc_proper(0.05).value
             else:
@@ -192,7 +194,9 @@ class projection(object):
                 self.z = 0.05
             self.pxsize = self.ar / s.cosmology.arcsec_per_kpc_proper(self.z).value * s.cosmology.h
             if self.npx == 'auto':
-                self.npx = np.int32(2. * s.radius / self.pxsize)
+                self.npx = np.int32(2. * self.rr / self.pxsize)
+            else:
+                self.rr = self.npx * self.pxsize
         self.ar /= 3600.  # arcsec to degree
 
         if self.sp is not False:  # noraml projection
@@ -244,8 +248,7 @@ class projection(object):
             self.outd["Metal"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass * s.S_metal)[0]
             self.outd["Metal"][ids] /= self.outd["Mass"][ids]
 
-        self.pxsize /= s.cosmology.h  # Now pixel size in physical
-        self.cc = s.center/s.cosmology.h  # real center in the data
+        self.cc = center  # real center in the data
 
     def write_fits_image(self, fname, comments='None', overwrite=False):
         r"""
@@ -316,11 +319,11 @@ class projection(object):
             hdu.header["PIXVAL"] = self.flux
             hdu.header.comments["PIXVAL"] = 'in flux[ergs/s/cm^2], lumi[ergs/s] or mag.'
             hdu.header["ORAD"] = float(self.rr)
-            hdu.header.comments["ORAD"] = 'Rcut for the image. Not R200 if not set to'
+            hdu.header.comments["ORAD"] = 'Rcut in physical for the image.'
             hdu.header["REDSHIFT"] = float(self.z)
-            hdu.header.comments["REDSHIFT"] = 'The redshift of the object'
+            hdu.header.comments["REDSHIFT"] = 'The redshift of the object being put to'
             hdu.header["PSIZE"] = float(self.pxsize)
-            hdu.header.comments["PSIZE"] = 'The pixel size of the image in comoving'
+            hdu.header.comments["PSIZE"] = 'The pixel size of the image in physical'
             hdu.header["AGLRES"] = float(self.ar*3600.)
             hdu.header.comments["AGLRES"] = '\'observation\' angular resolution in arcsec'
             hdu.header["ORIGIN"] = 'PymGal'
