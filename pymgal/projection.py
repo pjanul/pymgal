@@ -40,7 +40,8 @@ class projection(object):
                 At z=0, no matter AR is set or not, AR is always assume at z = 0.05.
     redshift: The redshift of the object at. Default: None.
                 If None, redshift from simulation data will be used.
-                Maybe move to 0.05 if it is 0.
+                This will be moved to 0.05 if simulation redshift is used and equal to 0.
+                Note this redshift does not change anything of the simulation physical particle positions, only shift the object to this redshift for observing.
     zthick  : The thickness in projection direction. Default: None.
                 If None, use all data from cutting region. Otherwise set a value in simulation
                 length unit (kpc/h normally), then a slice of data [center-zthick, center+zthick]
@@ -90,14 +91,14 @@ class projection(object):
             self.cc = SP
         else:
             raise ValueError("SP length should be either 2 or 3!")
-        self.rr = simd.radius/simd.cosmology.h / (1.+ self.z)   # to physical
+        self.rr = simd.radius/simd.cosmology.h / (1.+ simd.z)   # to physical in simulation time
         self.flux = unit
         self.omas = outmas
         self.oage = outage
         self.omet = outmet
         self.zthick = zthick
         if zthick is not None:
-            self.zthick /= (simd.cosmology.h / (1.+ self.z))
+            self.zthick /= (simd.cosmology.h / (1.+ simd.z))
         self.outd = {}
 
         # if not flux:
@@ -116,9 +117,9 @@ class projection(object):
         """
         # ratation data points first
 
-        pos = np.copy(s.S_pos) / s.cosmology.h / (1.+ self.z)  # to assumed physical
-        pos -= self.cc / s.cosmology.h / (1.+ self.z)
-        center = s.center / s.cosmology.h / (1.+ self.z)
+        pos = np.copy(s.S_pos) / s.cosmology.h / (1.+ s.z)  # to assumed physical
+        pos -= self.cc / s.cosmology.h / (1.+ s.z)
+        center = s.center / s.cosmology.h / (1.+ s.z)
 
         if isinstance(self.axis, type('')):
             if self.axis.lower() == 'y':  # x-z plane
@@ -325,7 +326,7 @@ class projection(object):
             hdu.header["REDSHIFT"] = float(self.z)
             hdu.header.comments["REDSHIFT"] = 'The redshift of the object being put to'
             hdu.header["PSIZE"] = float(self.pxsize)
-            hdu.header.comments["PSIZE"] = 'The pixel size of the image in physical'
+            hdu.header.comments["PSIZE"] = 'The pixel size in physical at simulation time'
             hdu.header["AGLRES"] = float(self.ar*3600.)
             hdu.header.comments["AGLRES"] = '\'observation\' angular resolution in arcsec'
             hdu.header["ORIGIN"] = 'PymGal'
