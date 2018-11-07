@@ -420,7 +420,11 @@ class SSP_models(object):
                 ids = np.ones(simdata.S_metal.size, dtype=np.bool)
 
             # threading parallel
-            Ns = np.int32(ids.size / Ncpu)
+            if ids.size > Ncpu:
+                Ns = np.int32(ids.size / Ncpu)
+            else:
+                print("# WARNING: More CPUs than particles!!")
+                Ns = 1  # more cpu than particles
             Lst = np.arange(0, ids.size, Ns)
             Lst = np.append(Lst, ids.size)
             threads = []
