@@ -67,7 +67,7 @@ class load_data(object):
         head = readsnapsgl(filename, "HEAD", quiet=True)
         self.cosmology = FlatLambdaCDM(head[-1] * 100, head[-3])
         self.scale_factor = head[2]
-        self.redshift = head[3] if head[3] > 0 else 0.0
+        self.redshift = head[3]  # if head[3] > 0 else 0.0
         self.Uage = self.cosmology.age(self.redshift).value
 
         spos = readsnapsgl(filename, "POS ", ptype=4, quiet=True)
