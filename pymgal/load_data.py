@@ -49,8 +49,8 @@ class load_data(object):
         self.S_mass = np.array([])
         self.S_pos = np.array([])
         self.cosmology = None  # default wmap7
-        self.currenta = 1.0  # z = 0
-        self.z = 0.0
+        self.scale_factor = 1.0  # z = 0
+        self.redshift = 0.0
         self.Uage = 0.0  # university age in Gyrs
         self.center = center
         self.radius = radius
@@ -66,10 +66,10 @@ class load_data(object):
     def _load_snap(self, filename, nmetal):
         head = readsnapsgl(filename, "HEAD", quiet=True)
         self.cosmology = FlatLambdaCDM(head[-1] * 100, head[-3])
-        self.currenta = head[2]
-        self.redshift = head[3]
+        self.scale_factor = head[2]
+        self.redshift = head[3] if head[3] > 0 else 0.0
         self.Uage = self.cosmology.age(self.redshift).value
-        self.z = head[3] if head[3] > 0 else 0.0
+
         spos = readsnapsgl(filename, "POS ", ptype=4, quiet=True)
         if (self.center is not None) and (self.radius is not None):
             # r = np.sqrt(np.sum((spos - self.center)**2, axis=1))

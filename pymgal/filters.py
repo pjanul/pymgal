@@ -267,8 +267,8 @@ class filters(object):
         #     redshift = 0
 
         if apparent:
-            app = 5. * np.log10(simd.cosmology.luminosity_distance(simd.z).value
-                                * 1.0e5) if simd.z > 0 else -np.inf
+            app = 5. * np.log10(simd.cosmology.luminosity_distance(simd.redshift).value
+                                * 1.0e5) if simd.redshift > 0 else -np.inf
         else:
             app = 0.0
 

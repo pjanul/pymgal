@@ -78,7 +78,7 @@ class projection(object):
             self.npx = npx
         self.ar = AR
         if redshift is None:
-            self.z = simd.z
+            self.z = simd.redshift
         else:
             self.z = redshift
 
@@ -91,14 +91,14 @@ class projection(object):
             self.cc = SP
         else:
             raise ValueError("SP length should be either 2 or 3!")
-        self.rr = simd.radius/simd.cosmology.h / (1.+ simd.z)   # to physical in simulation time
+        self.rr = simd.radius/simd.cosmology.h / (1.+ simd.redshift)   # to physical in simulation time
         self.flux = unit
         self.omas = outmas
         self.oage = outage
         self.omet = outmet
         self.zthick = zthick
         if zthick is not None:
-            self.zthick /= (simd.cosmology.h / (1.+ simd.z))
+            self.zthick /= (simd.cosmology.h / (1.+ simd.redshift))
         self.outd = {}
 
         # if not flux:
@@ -117,9 +117,9 @@ class projection(object):
         """
         # ratation data points first
 
-        pos = np.copy(s.S_pos) / s.cosmology.h / (1.+ s.z)  # to assumed physical
-        pos -= self.cc / s.cosmology.h / (1.+ s.z)
-        center = s.center / s.cosmology.h / (1.+ s.z)
+        pos = np.copy(s.S_pos) / s.cosmology.h / (1.+ s.redshift)  # to assumed physical
+        pos -= self.cc / s.cosmology.h / (1.+ s.redshift)
+        center = s.center / s.cosmology.h / (1.+ s.redshift)
 
         if isinstance(self.axis, type('')):
             if self.axis.lower() == 'y':  # x-z plane

@@ -440,7 +440,7 @@ class SSP_models(object):
                 seds[:, ids] *= dust_func(simdata.S_age[ids], self.ls[metmodel])
 
         units = units.lower()
-        if (rest_frame) or (simdata.z <= 0.):
+        if (rest_frame) or (simdata.redshift <= 0.):
             if units == 'jy':
                 return seds / 1e-23
             if units == 'fv':
@@ -457,23 +457,23 @@ class SSP_models(object):
         else:  # sed in observer's frame
             vs = np.copy(self.vs[self.met_name[0]])
             if units == 'jy':
-                seds = (seds / 1e-23) * (1 + simdata.z)
-                vs /= (1.0 + simdata.z)
+                seds = (seds / 1e-23) * (1 + simdata.redshift)
+                vs /= (1.0 + simdata.redshift)
             if units == 'fv':
-                seds =  seds * (1 + simdata.z)
-                vs /= (1.0 + simdata.z)
+                seds =  seds * (1 + simdata.redshift)
+                vs /= (1.0 + simdata.redshift)
             if units == 'fl':  # reverse if units are Fl so that frequencies are increasing in wavelength
                 vs = utils.to_lambda(vs[::-1], units='a')
-                vs = vs * (1.0 + simdata.z)
+                vs = vs * (1.0 + simdata.redshift)
                 seds = seds * (vs.reshape(self.nvs[0], 1))**2.0 / utils.convert_length(utils.c, outgoing='a')
-                sed = sed[::-1] / (1 + simdata.z)
+                sed = sed[::-1] / (1 + simdata.redshift)
             if units == 'flux':
-                vs = vs * (1.0 + simdata.z)
+                vs = vs * (1.0 + simdata.redshift)
                 seds *= vs.reshape(self.nvs[0], 1)
 
             if units == 'luminosity':  # bolometric luminosity
-                vs = vs * (1.0 + simdata.z)
+                vs = vs * (1.0 + simdata.redshift)
                 return vs, seds * vs.reshape(self.nvs[0], 1) * 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
             else:
-                return vs, sed * 10.0**(-0.4 * 5.* np.log10(simdata.cosmology.luminosity_distance(simdata.z).to('pc').value/10.))
+                return vs, sed * 10.0**(-0.4 * 5.* np.log10(simdata.cosmology.luminosity_distance(simdata.redshift).to('pc').value/10.))
             raise NameError('Units of %s are unrecognized!' % units)
