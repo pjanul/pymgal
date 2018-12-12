@@ -166,7 +166,7 @@ class filters(object):
             self.f_vs[fname] = filters[:, 0]
             self.f_ls[fname] = utils.to_lambda(self.f_vs[fname], units='a')
         else:
-            self.f_vs[fname] = utils.to_hertz(filters[:, 0], units=units)
+            self.f_vs[fname] = utils.to_hertz(filters[:, 0], units='a')
             self.f_ls[fname] = utils.convert_length(
                 filters[:, 0], incoming=units, outgoing='a')
         self.f_tran[fname] = filters[:, 1]
@@ -315,7 +315,7 @@ class filters(object):
                 mag[i] = np.nan
 
             mag[i] = simps(interp(self.f_vs[i]).T * self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]  # normalized Flux
-            if unit.lower() == 'Flux':
+            if unit.lower() == 'flux':
                 mag[i] /= 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
             if unit.lower() == 'magnitude':
                 mag[i] = -2.5 * np.log10(mag[i]) + app + to_vega + to_solar
