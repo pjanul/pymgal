@@ -441,6 +441,7 @@ class SSP_models(object):
 
         units = units.lower()
         if (rest_frame) or (simdata.redshift <= 0.):
+            vs = np.copy(self.vs[self.met_name[0]])
             if units == 'jy':
                 return seds / 1e-23
             if units == 'fv':
@@ -475,5 +476,5 @@ class SSP_models(object):
                 vs = vs * (1.0 + simdata.redshift)
                 return vs, seds * vs.reshape(self.nvs[0], 1) * 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
             else:
-                return vs, sed * 10.0**(-0.4 * 5.* np.log10(simdata.cosmology.luminosity_distance(simdata.redshift).to('pc').value/10.))
+                return vs, seds * 10.0**(-0.4 * 5.* np.log10(simdata.cosmology.luminosity_distance(simdata.redshift).to('pc').value/10.))
             raise NameError('Units of %s are unrecognized!' % units)

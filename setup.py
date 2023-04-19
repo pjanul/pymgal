@@ -3,7 +3,7 @@
 
 import os
 import subprocess
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, find_namespace_packages
 
 
 MAJOR = 1
@@ -60,13 +60,17 @@ def setup_package():
     write_version_py()
     setup(
         name='pymgal',
+        packages=find_packages(),
         version=VERSION,
         author='Weiguang Cui',
         author_email='cuiweiguang@gmail.com',
         description="A Package for Mock Observations in optical bands",
         long_description=read('README.md'),
-        packages=find_packages(),
+        #packages=find_namespace_packages(),
         requires=['numpy', 'scipy', 'astropy'],
+        #package_dir={"./": "./pymgal/"},
+        #package_data={"models": ["*.model"],"filters": ["*"]},
+        include_package_data=True,
         package_data={
             '': ['*.fits',
                  '*README*',
@@ -74,7 +78,6 @@ def setup_package():
                  'filters/*',
                  'refs/*']},
         license="BSD",
-        include_package_data=True,
         keywords='astronomy astrophysics hydro-dynamical simulation mock observation',
         classifiers=[
             "Development Status :: 5 - Production/Stable",

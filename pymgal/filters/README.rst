@@ -22,3 +22,5 @@ All filters *should* represent total transmission: filter, detector, mirrors, at
 * UKIDSS filters come from http://svo.cab.inta-csic.es/theory/fps/index.php?id=UKIRT/UKIDSS.J&&mode=browse&gname=UKIRT&gname2=UKIDSS
 
 * GALEX filters come from http://adsabs.harvard.edu/abs/2005ApJ...619L...7M via http://www.astro.caltech.edu/~capak/cosmos/filters/
+ 
+* Euclid filters come from http://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?id=Euclid/VIS.vis&&mode=browse&gname=Euclid&gname2=VIS#filter

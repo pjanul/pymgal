@@ -96,7 +96,7 @@ class load_data(object):
         self.S_mass = readsnapsgl(filename, "MASS", ptype=4, quiet=True)[
             ids] * 1.0e10 / head[-1]  # in M_sun
         self.S_metal = readsnapsgl(filename, "Z   ", ptype=4, nmet=nmetal, quiet=True)
-        if self.S_metal is 0:
+        if self.S_metal is None:
             self.S_metal = readsnapsgl(filename, "ZTOT", ptype=4, nmet=nmetal, quiet=True)[ids]
         else:
             self.S_metal = self.S_metal[ids]
