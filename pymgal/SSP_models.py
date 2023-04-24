@@ -9,6 +9,7 @@ import numpy as np
 import astropy.io.fits as pyfits
 # from multiprocessing import Process, cpu_count, Queue, freeze_support
 import threading
+from scipy.integrate import simps
 
 # worker for multiprocessing
 # def worker(input, output):
@@ -478,3 +479,93 @@ class SSP_models(object):
             else:
                 return vs, seds * 10.0**(-0.4 * 5.* np.log10(simdata.cosmology.luminosity_distance(simdata.redshift).to('pc').value/10.))
             raise NameError('Units of %s are unrecognized!' % units)
+
+
+def calc_bol_energy(sspmod, simd, Ncpu=1, dust_func=None, unit='flux',
+                apparent=False, vega=False, solar=False, rest_frame=True):
+    r"""
+    mag = pymgal.calc_energy(self, sspmod, simd, fn=None, Ncpu=1, dust_func=None, unit='flux',
+                             apparent=False, vega=False, solar=False, rest_frame=False):
+
+    sspmod      : loaded ssp models.
+    simd        : loaded simulation data from load_data
+    fn          : the name of filter/s. string, list of strings, or None
+                    By default (None), all loaded filters will be included in the calculation
+    Ncpu        : The number of CPUs for parallel interpolation, default = 1
+    dust_func   : The function for dust attenuetion.
+    unit        : the returned value in the filter bands, default : Flux.
+                    It can be 'luminosity' or 'magnitude'
+    apparent    : If you need apparent magnitude, set True. Default False
+    vega        : return AB magnitude in VEGA.
+    solar       : return AB magnitude in solar.
+    rest_frame  : Do you want the resutls in rest_frame? default: False, in observer's frame.
+                    We always assume the observer is at z = 0. If true, we force everything in rest_frame.
+    returns     : 0. Flux, default
+                  1. luminosity
+                  2. magnitude (AB), can be apparent if apparent=True, in vega mags if vega=True or in solar mags in solar=True
+
+    Example:
+        mag = pymgal.calc_mag(ssp, simd, z, fn=None)
+
+    Notes:
+    Calculate the Flux, Luminosity or magnitude of the given sed.
+    """
+
+
+    if apparent:
+        app = 5. * np.log10(simd.cosmology.luminosity_distance(simd.redshift).value
+                            * 1.0e5) if simd.redshift > 0 else -np.inf
+    else:
+        app = 0.0
+
+    if unit.lower() == 'magnitude':
+        unt = 'luminosity'
+    else:
+        unt = unit.lower()
+
+    vs = sspmod.vs[sspmod.met_name[0]]
+    mag = {}
+
+    if not rest_frame:
+        raise ValueError('function needs to be added!! use rest_frame=True right now!')
+        vsn = vs / (1 + redshift)
+        interp = interp1d(vsn, sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv'), axis=0,
+                          bounds_error=False, fill_value="extrapolate")
+    else:
+        vsn = np.copy(sspmod.vs[sspmod.met_name[0]])
+        sedn = sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv')
+        interp = interp1d(vsn, sedn, axis=0, bounds_error=False, fill_value="extrapolate")
+    print("Interpolation for the SEDs are done.")
+
+
+    if vega:
+        # to_vega = self.vega_mag[i] # need to be updated
+        raise ValueError('function needs to be added!! use vaga=False right now!')
+    else:
+        to_vega = 0.0
+    if solar:
+        # to_solar = self.solar_mag[i]
+        raise ValueError('function needs to be added!! use solar=False right now!')
+    else:
+        to_solar = 0.0
+
+        # c = ((vsn > self.f_vs[i].min()) & (vsn < self.f_vs[i].max())).sum()
+        # if c < 3:
+        #     print("Warning, wavelength range from SSP models is too near filter,",
+        #           " magnitude is assigned nan")
+        #     mag[i] = np.nan
+        # # and that the SED actually covers the whole filter
+        # if vsn.min() > self.f_vs[i].min() or vsn.max() < self.f_vs[i].max():
+        #     print("Warning, wavelength range from SSP models is outside of filter,",
+        #           " magnitude is assigned nan")
+        #     mag[i] = np.nan
+        
+    ab_source_flux = 3.631e-20  # flux of a zero mag ab source
+    
+    # mag[i] = simps(interp(self.f_vs[i]).T * self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]  # normalized Flux
+    mag['bol'] = simps(sedn/ab_source_flux/vsn[:, None], vsn, axis=0)
+    if unit.lower() == 'flux':
+        mag[i] /= 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
+    if unit.lower() == 'magnitude':
+        mag[i] = -2.5 * np.log10(mag[i]) + app + to_vega + to_solar
+    return mag

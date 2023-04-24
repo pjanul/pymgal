@@ -279,14 +279,10 @@ class filters(object):
 
         vs = sspmod.vs[sspmod.met_name[0]]
         mag = {}
-        # if rest_frame:
-        #     shifted = vs
-        # else:
-        #     shifted = vs / (1 + redshift)
 
-        if rest_frame:
-            vsn = vs
-            interp = interp1d(vs, sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv'), axis=0,
+        if not rest_frame:
+            vsn = vs / (1 + redshift)
+            interp = interp1d(vsn, sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv'), axis=0,
                               bounds_error=False, fill_value="extrapolate")
         else:
             vsn, sedn = sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv')
