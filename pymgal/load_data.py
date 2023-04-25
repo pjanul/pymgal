@@ -1,4 +1,4 @@
-from pymgal.readsnapsgl import readsnapsgl
+from pymgal.readsnapsgl import readsnap
 import numpy as np
 from astropy.cosmology import FlatLambdaCDM
 # from scipy.interpolate import griddata
@@ -64,13 +64,19 @@ class load_data(object):
             self._load_raw(datafile)
 
     def _load_snap(self, filename, nmetal):
-        head = readsnapsgl(filename, "HEAD", quiet=True)
-        self.cosmology = FlatLambdaCDM(head[-1] * 100, head[-3])
-        self.scale_factor = head[2]
-        self.redshift = head[3]  # if head[3] > 0 else 0.0
+        if filename[-4:]=='hdf5':
+            head = readsnap(filename, "Header", quiet=True)
+        else:
+            head = readsnap(filename, "HEAD", quiet=True)
+        self.cosmology = FlatLambdaCDM(head.HubbleParam * 100, head.Omega0)
+        self.scale_factor = head.Time
+        self.redshift = head.Redshift  # if head[3] > 0 else 0.0
         self.Uage = self.cosmology.age(self.redshift).value
 
-        spos = readsnapsgl(filename, "POS ", ptype=4, quiet=True)
+        if filename[-4:]=='hdf5':
+            spos = readsnap(filename, "Coordinates", ptype=4, quiet=True)
+        else:
+            spos = readsnap(filename, "POS ", ptype=4, quiet=True)
         if (self.center is not None) and (self.radius is not None):
             # r = np.sqrt(np.sum((spos - self.center)**2, axis=1))
             # ids = r <= self.radius
@@ -83,21 +89,30 @@ class load_data(object):
             self.S_pos = spos[ids]  # - self.center
             self.center = np.asarray(self.center)
         else:
-            ids = np.ones(head[0][4], dtype=bool)
+            ids = np.ones(head.totnum[4], dtype=bool)
             self.S_pos = spos  # - np.mean(spos, axis=0)
             self.center = np.mean(spos, axis=0)
             self.radius = np.max([spos[:,0].max()-self.center[0], self.center[0]-spos[:,0].min(),
                                   spos[:,1].max()-self.center[1], self.center[1]-spos[:,1].min(),
                                   spos[:,2].max()-self.center[2], self.center[2]-spos[:,2].min()])
-        age = readsnapsgl(filename, "AGE ", quiet=True)[:head[0][4]][ids]
+        if filename[-4:]=='hdf5':
+            age = readsnap(filename, "StellarFormationTime",ptype=4, quiet=True)[ids]
+        else:
+            age = readsnap(filename, "AGE ", quiet=True)[:head.totnum[4]][ids]
         age = self.Uage - self.cosmology.age(1. / age - 1).value
         age[age < 0] = 0  # remove negative ages
         self.S_age = age * 1.0e9  # in yrs
-        self.S_mass = readsnapsgl(filename, "MASS", ptype=4, quiet=True)[
-            ids] * 1.0e10 / head[-1]  # in M_sun
-        self.S_metal = readsnapsgl(filename, "Z   ", ptype=4, nmet=nmetal, quiet=True)
+        if filename[-4:]=='hdf5':
+            self.S_mass = readsnap(filename, "Masses", ptype=4, quiet=True)[ids] * 1.0e10 / head.HubbleParam
+        else:
+            self.S_mass = readsnap(filename, "MASS", ptype=4, quiet=True)[ids] * 1.0e10 / head.HubbleParam  # in M_sun
+        if filename[-4:]=='hdf5':
+            self.S_metal = readsnap(filename, "Metallicity", ptype=4, quiet=True)[:,0] # note this is only for SIMBA simulation
+        else:
+            self.S_metal = readsnap(filename, "Z   ", ptype=4, nmet=nmetal, quiet=True)
+            
         if self.S_metal is None:
-            self.S_metal = readsnapsgl(filename, "ZTOT", ptype=4, nmet=nmetal, quiet=True)[ids]
+            self.S_metal = readsnap(filename, "ZTOT", ptype=4, nmet=nmetal, quiet=True)[ids]
         else:
             self.S_metal = self.S_metal[ids]
 
