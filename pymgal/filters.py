@@ -280,13 +280,13 @@ class filters(object):
         vs = sspmod.vs[sspmod.met_name[0]]
         mag = {}
 
-        if not rest_frame:
-            vsn = vs / (1 + redshift)
-            interp = interp1d(vsn, sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv'), axis=0,
-                              bounds_error=False, fill_value="extrapolate")
-        else:
-            vsn, sedn = sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv')
-            interp = interp1d(vsn, sedn, axis=0, bounds_error=False, fill_value="extrapolate")
+        #if not rest_frame:
+        #    vsn = vs / (1 + redshift)
+        #    interp = interp1d(vsn, sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv'), axis=0,
+        #                      bounds_error=False, fill_value="extrapolate")
+        #else:
+        vsn, sedn = sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv')
+        interp = interp1d(vsn, sedn, axis=0, bounds_error=False, fill_value="extrapolate")
         print("Interpolation for the SEDs are done.")
 
         for i in fn:

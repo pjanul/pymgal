@@ -444,17 +444,17 @@ class SSP_models(object):
         if (rest_frame) or (simdata.redshift <= 0.):
             vs = np.copy(self.vs[self.met_name[0]])
             if units == 'jy':
-                return seds / 1e-23
+                return vs, seds / 1e-23
             if units == 'fv':
-                return seds
+                return vs, seds
             if units == 'fl':
-                return seds * (self.vs[self.met_name[0]].reshape(self.nvs[0], 1))**2.0 / utils.convert_length(utils.c, outgoing='a')
+                return vs, seds * (self.vs[self.met_name[0]].reshape(self.nvs[0], 1))**2.0 / utils.convert_length(utils.c, outgoing='a')
 
             seds *= self.vs[self.met_name[0]].reshape(self.nvs[0], 1)
             if units == 'flux':
-                return seds
+                return vs, seds
             if units == 'luminosity':
-                return seds * 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
+                return vs, seds * 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
             raise NameError('Units of %s are unrecognized!' % units)
         else:  # sed in observer's frame
             vs = np.copy(self.vs[self.met_name[0]])
