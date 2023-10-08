@@ -60,7 +60,7 @@ def setup_package():
     write_version_py()
     setup(
         name='pymgal',
-        packages=find_packages(),
+        packages=find_namespace_packages(),
         version=VERSION,
         author='Weiguang Cui',
         author_email='cuiweiguang@gmail.com',
