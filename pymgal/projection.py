@@ -3,9 +3,81 @@ import astropy.units as u
 import re
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
-from pymgal import version
+from scipy.spatial import KDTree
+#from scipy.ndimage import gaussian_filter
+import pandas as pd
+#from pymgal import version
 # scipy must >= 0.17 to properly use this!
 # from scipy.stats import binned_statistic_2d
+
+
+# Create kD tree and extract the distance of the kth nearest neighbour (kth distance = 1 sigma of gaussian kernel)
+def knn_distance(positions, k):
+    kdtree = KDTree(positions) 
+    _, indices = kdtree.query(positions, k + 1)  # k + 1 to exclude the point itself
+    kth_neighbors = np.take(positions, indices[:, k], axis=0)
+    kth_distances = np.linalg.norm(kth_neighbors - positions, axis=1)
+    return kth_distances
+
+
+def add_array_to_large(large_array, small_array, center_x, center_y):
+    small_height, small_width = small_array.shape
+    large_height, large_width = large_array.shape
+
+    start_x = max(0, center_x - small_width // 2)
+    end_x = min(large_width, center_x + (small_width + 1) // 2)
+    start_y = max(0, center_y - small_height // 2)
+    end_y = min(large_height, center_y + (small_height + 1) // 2)
+
+    small_start_x = max(0, small_width // 2 - center_x)
+    small_end_x = small_start_x + (end_x - start_x)
+    small_start_y = max(0, small_height // 2 - center_y)
+    small_end_y = small_start_y + (end_y - start_y)
+
+    large_array[start_x:end_x, start_y:end_y] += small_array[small_start_x:small_end_x, small_start_y:small_end_y]
+    
+    return large_array
+
+
+
+def create_gaussian_kernel(sigma):
+    x = np.arange(-3 * sigma, 3 * sigma + 1, 1)
+    y = np.arange(-3 * sigma, 3 * sigma + 1, 1)
+    xx_kernel, yy_kernel = np.meshgrid(x, y)
+    kernel = np.exp(-(xx_kernel**2 + yy_kernel**2) / (2.0 * sigma**2)) / (2.0 * np.pi * sigma**2)
+    return kernel
+
+def gaussian_smoothing(distances, weights_dict, sample_hist, x_bins, y_bins, pixel_scale, max_kernel=15):
+    smoothed_hists = {channel: np.zeros_like(sample_hist) for channel in weights_dict}
+    x_bins_range = max(x_bins) - min(x_bins)
+    y_bins_range = max(y_bins) - min(y_bins)
+
+    # Precompute and store Gaussian kernels in a dictionary. This is very important to keep the runtime manageable
+    gaussian_kernels = {}
+
+    for i in range(len(distances)):
+        sigma = np.round(distances[i] / pixel_scale)
+        # Ignore boundary particles which cause strange edge effects
+        if (x_bins[i] < 0.01 * x_bins_range) or (x_bins[i] > 0.99 * x_bins_range) or \
+           (y_bins[i] < 0.01 * y_bins_range) or (y_bins[i] > 0.99 * y_bins_range):
+            continue
+
+        sigma = min(max_kernel, max(sigma, 1))  # Cap sigma between 1 and max_kernel
+
+        # Look up the precomputed kernel from the dictionary, compute if not found
+        if sigma not in gaussian_kernels:
+            gaussian_kernels[sigma] = create_gaussian_kernel(sigma)
+
+        kernel = gaussian_kernels[sigma]
+
+        for channel, weights in weights_dict.items():
+            smoothed_particle = weights[i] * kernel
+            smoothed_hists[channel] = add_array_to_large(smoothed_hists[channel], smoothed_particle, x_bins[i], y_bins[i])
+
+    return smoothed_hists
+
+
+
 
 
 def get_property(prop):
@@ -52,6 +124,10 @@ class projection(object):
                 The pos - [x,y,z] are taken as the J2000 3D coordinates and converted into RA, DEC.
     unit    : is the input wdata in luminosity, flux or magnitude? Default: flux, assume in ab mag.
                 Set this to true if particles' luminosity are given in wdata.
+    ksmooth : The parameter dictating the smoothing length which serves as 1 sigma for the gaussian. Recommended value: ~50 
+                If k>0, you set the smoothing length of a particle to be the distance between the particle and its kth nearest neighbour.
+                If k=0, pymgal does not perform smoothing.
+                If k<0, throw an error.
     outmas  : do you want to out put stellar mass? Default: False.
                 If True, the stellar mass in each pixel are saved.
     outage  : do you want to out put stellar age (mass weighted)? Default: False.
@@ -69,7 +145,7 @@ class projection(object):
     """
 
     def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, zthick=None,
-                 SP=[194.95, 27.98], unit='flux', outmas=False, outage=False, outmet=False):
+                 SP=[194.95, 27.98], unit='flux', ksmooth=0, outmas=False, outage=False, outmet=False):
 
         self.axis = axis
         if isinstance(npx, type("")) or isinstance(npx, type('')):
@@ -96,6 +172,9 @@ class projection(object):
         self.omas = outmas
         self.oage = outage
         self.omet = outmet
+        self.ksmooth = ksmooth
+        if ksmooth < 0:
+            raise ValueError("ksmooth should be a value between 0 and 100 inclusively")
         self.zthick = zthick
         if zthick is not None:
             self.zthick /= (simd.cosmology.h / (1.+ simd.redshift))
@@ -115,11 +194,14 @@ class projection(object):
     def _prep_out(self, d, s):
         r""" rotate the data points and project them into a 2D grid.
         """
-        # ratation data points first
 
         pos = np.copy(s.S_pos) / s.cosmology.h / (1.+ s.redshift)  # to assumed physical
         pos -= self.cc / s.cosmology.h / (1.+ s.redshift)
         center = s.center / s.cosmology.h / (1.+ s.redshift)
+        kth_distance = 0  # initialize the variable and update it if self.ksmooth > 0
+        if self.ksmooth > 0:
+            kth_distance = knn_distance(pos, self.ksmooth)
+
 
         if isinstance(self.axis, type('')):
             if self.axis.lower() == 'y':  # x-z plane
@@ -227,29 +309,74 @@ class projection(object):
             xx = np.arange(minx, maxx, self.ar)
             yy = np.arange(miny, maxy, self.ar)
 
-        for i in d.keys():
+
+        x_bins = np.digitize(pos[:, 0], xx)                                                     # define x and y bins
+        y_bins = np.digitize(pos[:, 1], yy)
+        
+        # If smoothing is set to off
+        if self.ksmooth == 0:
+            for i in d.keys():
+                if self.flux.lower() == 'luminosity':  # luminosity
+                    self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0]
+                elif self.flux.lower() == 'flux': # flux
+                    self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i]*100./s.cosmology.luminosity_distance(self.z).to('pc').value**2)[0]
+                else: # ab mag
+                    self.outd[i] = np.ma.log10(np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=10**(d[i]/-2.5))[0])
+                    self.outd[i] = -2.5*self.outd[i].filled(self.outd[i].min()/2.)
+
+        # If smoothing is set to on and we have at least one filter to smooth
+        elif (self.ksmooth > 0) and (len(d.keys()) > 0):  
+            sample_hist =  np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=list(d.values())[0])[0] # define a sample hist using the weights from whichever filter comes first
+            smoothed_hists = None # initialize the set of smoothed histograms 
             if self.flux.lower() == 'luminosity':  # luminosity
-                self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0]
-            elif self.flux.lower() == 'flux':
-                self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy],
-                                              weights=d[i]*100./s.cosmology.luminosity_distance(self.z).to('pc').value**2)[0]
-            else:  # ab mag
-                self.outd[i] = np.ma.log10(np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=10**(d[i]/-2.5))[0])
-                self.outd[i] = -2.5*self.outd[i].filled(self.outd[i].min()/2.)
+                 smoothed_hists = gaussian_smoothing(kth_distance, d, sample_hist, x_bins, y_bins, self.pxsize)
+            elif self.flux.lower() == 'flux': # flux
+                d_flux = {key: d[key]*100./s.cosmology.luminosity_distance(self.z).to('pc').value**2 for key in d}
+                smoothed_hists = gaussian_smoothing(kth_distance, d_flux, sample_hist, x_bins, y_bins, self.pxsize)
+            else: # ab mag
+                d_mag = {key: 10**(d[key]/-2.5) for key in d}
+                smoothed_hists = gaussian_smoothing(kth_distance, d_mag, sample_hist, x_bins, y_bins, self.pxsize)
+                
+                #raise Exception("Error: smoothing not yet implemented for ab mag")
+            # Set the histograms to match the filters
+            for i in d.keys():
+                if self.flux.lower() == 'magnitude':
+                    self.outd[i] = np.ma.log10(smoothed_hists[i])
+                    self.outd[i] = -2.5*self.outd[i].filled(self.outd[i].min()/2.)
+                else:
+                    self.outd[i] = smoothed_hists[i]
+                
+
+        
 
         # Now grid the data
         # pmax, pmin = np.max(self.S_pos, axis=0), np.min(self.S_pos, axis=0)
         # grid_x, grid_y = np.mgrid[pmin[0]:pmax[0]:nx, pmin[1]:pmax[1]:nx]
         if self.omas or self.oage or self.omet:
-            self.outd["Mass"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass)[0]
+            #unsmooth_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass)[0]
+            
+            if self.ksmooth > 0:
+                star_soft_len = 5/s.cosmology.h # Get the value of the star softening length (5 kpc/h) in physical 
+                max_sigma = star_soft_len # Set the max standard deviation for the smoothing gaussian to be no more than the star softening length 
+                sample_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass)[0]
+                #print("Max sigma for mass in pixels: ", max_sigma)
+                mass_hist_dict = gaussian_smoothing(kth_distance, {"Mass": s.S_mass}, sample_hist, x_bins, y_bins, self.pxsize, max_sigma)
+                self.outd["Mass"] = mass_hist_dict["Mass"]
+
+            else:
+                self.outd["Mass"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass)[0]
+            
         if self.oage:
-            ids = self.outd["Mass"] > 0
+            unsmooth_mass_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass)[0]
+            ids = unsmooth_mass_hist > 0
             self.outd["Age"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass * s.S_age)[0]
-            self.outd["Age"][ids] /= self.outd["Mass"][ids]
+            self.outd["Age"][ids] /= unsmooth_mass_hist[ids]
+                
         if self.omet:
-            ids = self.outd["Mass"] > 0
+            unsmooth_mass_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass)[0]
+            ids = unsmooth_mass_hist > 0
             self.outd["Metal"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass * s.S_metal)[0]
-            self.outd["Metal"][ids] /= self.outd["Mass"][ids]
+            self.outd["Metal"][ids] /= unsmooth_mass_hist[ids]
 
         self.cc = center  # real center in the data
 
@@ -331,7 +458,7 @@ class projection(object):
             hdu.header.comments["AGLRES"] = '\'observation\' angular resolution in arcsec'
             hdu.header["ORIGIN"] = 'PymGal'
             hdu.header.comments["ORIGIN"] = 'Software for generating this mock image'
-            hdu.header["VERSION"] = version.version  # get_property('__version__')
+            hdu.header["VERSION"] = "newest"  # get_property('__version__')
             hdu.header.comments["VERSION"] = 'Version of the software'
             hdu.header["DATE-OBS"] = Time.now().tt.isot
             if isinstance(comments, type([])) or isinstance(comments, type(())):
