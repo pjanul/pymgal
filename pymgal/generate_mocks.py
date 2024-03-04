@@ -3,11 +3,13 @@ import pandas as pd
 import numpy as np
 from astropy.io import fits
 import os, sys
+from os.path import dirname, abspath
 from readsnapsgl import readsnapgd
 from PIL import Image
 import argparse
 import yaml
-sys.path.append("../../pymgal") # There's probably a better way of importing pymgal
+d = dirname(dirname(abspath(__file__)))
+sys.path.append(d)
 import pymgal
 
 
@@ -17,6 +19,8 @@ def create_number_strings(start, end):
     number_strings = []
     if end is None:
         number_strings = [str(start).zfill(4)]
+    elif end < start:
+        raise ValueError("The starting cluster cannot have a greater index than the end cluster.")
     else:
         for num in range(start, end + 1):
             num_string = str(num).zfill(4)
