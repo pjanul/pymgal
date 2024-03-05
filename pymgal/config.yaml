@@ -1,0 +1,15 @@
+output_dir: "../../data"                                                    # The directory you'd like your projections to be stored in
+data_dir: "/niftydata/TheThreeHundred/data/"                                # The directory containing your data (must follow the 300 Project's file setup)
+start_cluster: 10                                                           # The index of the first cluster you want to project
+end_cluster: null                                                           # The index of the last cluster you want to project. If set to null, only the start_cluster will be projected
+filters: ["sloan_u", "sloan_g", "sloan_r", "sloan_i", "sloan_z",]           # The filters you want for your mock observations
+snaps: ["snap_121", "snap_120", "snap_119", "snap_118"]                     # A list snap numbers. Snap numbers start at snap_128 (z=0) and decrease as z increases
+num_random_proj: 10                                                         # The number of random projections you want. Can be zero only proj_vecs is not null.
+proj_vecs: null                                                             # A list projection vectors. Can be "x", "y", "z" (principal axes), or a custom [x, y, z] in cartesian. Can be null only if num_random_proj > 0.
+code: "GadgetX"                                                             # The simulation code used to create this data
+outiv: "flux"                                                               # Whether you want your images to show "flux", "magnitude", or "luminosity"
+AR: 1.2                                                                     # The angular resolution of your mock observation
+ksmooth: 30                                                                 # A smoothing parameter of at least 0 used in kNN Gaussian smoothing. The greater ksmooth, the smoother the image.
+outmas: False                                                               # Output the mass map corresponding to your data
+outage: True                                                                # Output the age map corresponding to your data
+outmet: True                                                                # Output the metallicity map corresponding to your data
