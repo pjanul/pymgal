@@ -21,8 +21,8 @@ To install the necessary dependencies, simply enter the outer pymgal directory a
 ##### Database configuration
 
 The database must contain both the simulation data and the catalogue data. Below is an example database. This example uses the GadgetX code, but you can also use other simulation code such as GadgetMUSIC or GIZMO. 
-For a given cluster at a given redshift, you'll need (1) the corresponding .AHF_halos file, (2) the corresponding .AHF_mtree_idx file, and (3) the corresponding snapshot file. 
-You'll also need (4) one center-cluster.txt file for your chosen simulation code. 
+For a given cluster at a given redshift, you'll need the corresponding (1) .AHF_halos file, (2) .AHF_mtree file, (3) .AHF_mtree_idx file, and (4) snap_XYZ snapshot file. 
+You'll also need (5) a single center-cluster.txt file for your chosen simulation code. 
 
 <br />
 ```bash
@@ -33,15 +33,16 @@ You'll also need (4) one center-cluster.txt file for your chosen simulation code
                 ├── GadgetX_R200c_snaps_128-center-cluster.txt
                 ├── NewMDCLUSTER_0001
                      ├── GadgetX-NewMDCLUSTER_0001_snap_128.z0.000.AHF_halos
+                     ├── GadgetX-NewMDCLUSTER_0001.snap_128.z0.000.AHF_mtree 
                      ├── GadgetX-NewMDCLUSTER_0001.snap_128.z0.000.AHF_mtree_idx
-                     ├── More AHF_haloes and AHF_mtree_idx files...
-                ├── More NewMDCLUSTER_XXXX directories...
+                     ├── More AHF_halos, AHF_mtree, and AHF_mtree_idx files...
+                ├── More NewMDCLUSTER_ directories...
     ├── simulations
         ├── GadgetX
             ├── NewMDCLUSTER_0001
                 ├── snap_128
-                ├── more snap_XXX files files
-            ├── More NewMDCLUSTER_XXXX directories...
+                ├── more snap_ files 
+            ├── More NewMDCLUSTER_ directories...
 ```  
 
 ##### Running pymgal
