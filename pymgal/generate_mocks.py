@@ -13,7 +13,6 @@ sys.path.append(d)
 import pymgal
 
 
-
 # Generate a list of cluster numbers such as "0001", "0002", etc.
 def create_number_strings(start, end):
     number_strings = []
@@ -109,7 +108,6 @@ def project_to_fits(cluster_num, config):
                 chosen_proj_vecs = [np.array(elem) if isinstance(elem, list) else elem for elem in config["proj_vecs"]]
             random_proj_vecs =  random_proj_dict.get(snapname)
             projections = chosen_proj_vecs + random_proj_vecs
-            print("projections: ", projections)
 
             # Load halos and merger trees
             head=readsnapgd(data_path+sim_path+f"NewMDCLUSTER_{cluster_num}/"+snapname,'HEAD')
@@ -136,21 +134,29 @@ def project_to_fits(cluster_num, config):
 
                 # Calculate luminosity
                 if simd.redshift < 0.5:
-                    mag = filters.calc_energy(sspmod, simd, Ncpu=3, unit=outiv, rest_frame=True)
+                    mag = filters.calc_energy(sspmod, simd, Ncpu=16, unit=outiv, rest_frame=True)
                 else:
-                    mag = filters.calc_energy(sspmod, simd, Ncpu=3, unit=outiv, dust_func=dustf, rest_frame=True)
+                    mag = filters.calc_energy(sspmod, simd, Ncpu=16, unit=outiv, dust_func=dustf, rest_frame=True)
 
 
                 # Rotate and project
                 z = max(0.14, simd.redshift)  #77105
-                for proj_direc in projections:
-                    print("Projecting photons to %s" % proj_direc)
-                    pj = pymgal.projection(mag, simd, npx=256, unit=outiv, AR=config["AR"], redshift=z,
-                                           axis=proj_direc, ksmooth=config["ksmooth"], outmas=config["outmas"], outage=config["outage"], outmet=config["outmet"])
+                for i, proj_direc in enumerate(projections):
+
+                    pj = None #Initialize
+                    if i==0:
+                        print("Projecting photons to %s" % proj_direc)
+                        pj = pymgal.projection(mag, simd, npx=256, unit=outiv, AR=config["AR"], redshift=z,
+                                               axis=proj_direc, ksmooth=config["ksmooth"], outmas=config["outmas"], outage=config["outage"], outmet=config["outmet"])
+                        lsmooth = pj.lsmooth
+
+                    else:
+                        print("Projecting photons to %s" % proj_direc)
+                        pj = pymgal.projection(mag, simd, npx=256, unit=outiv, AR=config["AR"], redshift=z,
+                                           axis=proj_direc, ksmooth=config["ksmooth"], lsmooth=lsmooth, outmas=config["outmas"], outage=config["outage"], outmet=config["outmet"])
 
 
                     # Create directory if it doesn't already exist
-                    print("Output dir: ", config["output_dir"])
                     output_dir = config["output_dir"] + f"/maps/CCD/{Code}/NewMDCLUSTER_{cluster_num}"
                     if not os.path.exists(output_dir):
                         os.makedirs(output_dir)
@@ -207,6 +213,7 @@ if __name__ == "__main__":
 
     # Define clusters and create the mock observations
     cluster_nums = create_number_strings(config["start_cluster"], config["end_cluster"])
+
     for cluster_num in cluster_nums:
         print(f"------------------- Cluster {cluster_num} -------------------")
         project_to_fits(cluster_num, config)
