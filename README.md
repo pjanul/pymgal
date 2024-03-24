@@ -1,6 +1,6 @@
 # README
 
-This README would normally document whatever steps are necessary to get your application up and running.
+This README documents whatever steps are necessary to get your application up and running.
 
 ### What is this repository for?
 
@@ -9,13 +9,13 @@ This README would normally document whatever steps are necessary to get your app
 
 ### How do I get set up?
 
-Begin by downloading pymgal onto your own device and placing it in your directory of choice. After downloading, you will need to install the necessary dependencies and configure yur database before you can run the code.
+Begin by downloading/cloning pymgal onto your own device and placing it in your directory of choice. After downloading, you will need to install the necessary dependencies and configure your database before you can run the code.
 
 ##### Dependencies 
 
 To install the necessary dependencies, simply enter the outer pymgal directory and run the following at the command line.
 
-`pip install -r requirements. txt`
+`pip install -r requirements.txt`
 
 
 ##### Database configuration
