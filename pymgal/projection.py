@@ -469,7 +469,7 @@ class projection(object):
             hdu.header.comments["AGLRES"] = '\'observation\' angular resolution in arcsec'
             hdu.header["ORIGIN"] = 'PymGal'
             hdu.header.comments["ORIGIN"] = 'Software for generating this mock image'
-            hdu.header["VERSION"] = "newest"  # get_property('__version__')
+            hdu.header["VERSION"] = "beta"  # get_property('__version__')
             hdu.header.comments["VERSION"] = 'Version of the software'
             hdu.header["DATE-OBS"] = Time.now().tt.isot
             if isinstance(comments, type([])) or isinstance(comments, type(())):
