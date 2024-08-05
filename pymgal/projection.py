@@ -6,7 +6,7 @@ from astropy.time import Time
 from scipy.spatial import KDTree
 import pandas as pd
 from functools import lru_cache
-#from pymgal import version
+from pymgal import __version__
 # scipy must >= 0.17 to properly use this!
 # from scipy.stats import binned_statistic_2d
 
@@ -116,7 +116,7 @@ class projection(object):
                 At z=0, no matter AR is set or not, AR is always assume at z = 0.05.
     redshift: The redshift of the object at. Default: None.
                 If None, redshift from simulation data will be used.
-                This will be moved to 0.05 if simulation redshift is used and equal to 0.
+                This will be moved to 0.10 if simulation redshift is used and equal to 0.
                 Note this redshift does not change anything of the simulation physical particle positions, only shift the object to this redshift for observing.
     zthick  : The thickness in projection direction. Default: None.
                 If None, use all data from cutting region. Otherwise set a value in simulation
@@ -326,14 +326,14 @@ class projection(object):
         y_bins = np.digitize(pos[:, 1], yy)
 
         self.cc = center  # real center in the data
-        
+        L_sun = 3.826e33 # convert from solar luminosities to erg/s
         # If smoothing is set to off
         if self.ksmooth == 0:
             for i in d.keys():
                 if self.flux.lower() == 'luminosity':  # luminosity
-                    self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0]
+                    self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i]*L_sun)[0]
                 elif self.flux.lower() == 'flux': # flux
-                    self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i]*100./s.cosmology.luminosity_distance(self.z).to('pc').value**2)[0]
+                    self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i]*L_sun*100./s.cosmology.luminosity_distance(self.z).to('pc').value**2)[0]
                 else: # ab mag
                     self.outd[i] = np.ma.log10(np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=10**(d[i]/-2.5))[0])
                     self.outd[i] = -2.5*self.outd[i].filled(self.outd[i].min()/2.)
@@ -343,9 +343,10 @@ class projection(object):
             sample_hist =  np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=list(d.values())[0])[0] # define a sample hist using the weights from whichever filter comes first
             smoothed_hists = None # initialize the set of smoothed histograms 
             if self.flux.lower() == 'luminosity':  # luminosity
-                 smoothed_hists = gaussian_smoothing(self.lsmooth, d, sample_hist, x_bins, y_bins, self.pxsize)
+                 d_lum = {key: d[key]*L_sun for key in d}
+                 smoothed_hists = gaussian_smoothing(self.lsmooth, d_lum, sample_hist, x_bins, y_bins, self.pxsize)
             elif self.flux.lower() == 'flux': # flux
-                d_flux = {key: d[key]*100./s.cosmology.luminosity_distance(self.z).to('pc').value**2 for key in d}
+                d_flux = {key: d[key]*L_sun*100./s.cosmology.luminosity_distance(self.z).to('pc').value**2 for key in d}
                 smoothed_hists = gaussian_smoothing(self.lsmooth, d_flux, sample_hist, x_bins, y_bins, self.pxsize)
             else: # ab mag
                 d_mag = {key: 10**(d[key]/-2.5) for key in d}
@@ -411,7 +412,7 @@ class projection(object):
 
         for i in self.outd.keys():
             hdu = pf.PrimaryHDU(self.outd[i].T)
-            hdu.header["SIMPLE"] = 'T'
+            hdu.header["SIMPLE"] = True
             hdu.header.comments["SIMPLE"] = 'conforms to FITS standard'
             hdu.header["BITPIX"] = int(-32)
             hdu.header.comments["BITPIX"] = '32 bit floating point'
@@ -469,7 +470,7 @@ class projection(object):
             hdu.header.comments["AGLRES"] = '\'observation\' angular resolution in arcsec'
             hdu.header["ORIGIN"] = 'PymGal'
             hdu.header.comments["ORIGIN"] = 'Software for generating this mock image'
-            hdu.header["VERSION"] = "beta"  # get_property('__version__')
+            hdu.header["VERSION"] = __version__.__version__
             hdu.header.comments["VERSION"] = 'Version of the software'
             hdu.header["DATE-OBS"] = Time.now().tt.isot
             if isinstance(comments, type([])) or isinstance(comments, type(())):
