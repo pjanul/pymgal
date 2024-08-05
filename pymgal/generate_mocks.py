@@ -4,7 +4,7 @@ import numpy as np
 from astropy.io import fits
 import os, sys
 from os.path import dirname, abspath
-from readsnapsgl import readsnapgd
+from readsnapsgl import readsnapgd, readhdf5head
 from PIL import Image
 import argparse
 import yaml
@@ -55,24 +55,27 @@ def merge_settings(config, args):
 def project_to_fits(cluster_num, config):
 
     # Initialize some variables
-    data_path = config["data_dir"]
     snaps = config["snaps"]
-    Code=config["code"]
-    outiv=config["outiv"]
-    cat_path="catalogues/AHF/"+Code+"/"
-    sim_path = "simulations/"+Code+"/"
+    Code = config["code"]
+    outiv = config["outiv"]  
+    cat_path = config["cat_dir"] 
+    sim_path = config["sim_dir"] 
+    chosen_dustf = config["dust_func"]
 
-    #regionID hID  Mvir(4) Xc(6)   Yc(7)   Zc(8)  Rvir(12) fMhires(38) cNFW (42) M500 R500 fgas f*
-    groupinfo=np.loadtxt(data_path + cat_path + f"{Code}_R200c_snaps_128-center-cluster.txt")
-    pregen=np.zeros((groupinfo.shape[0],129),dtype=np.int64)-1
-    pregen[:,128] = np.int64(groupinfo[:,1])
 
-    halo = np.loadtxt(data_path + cat_path + f"NewMDCLUSTER_{cluster_num}/{Code}-NewMDCLUSTER_{cluster_num}.snap_128.z0.000.AHF_halos")
-    sspmod = pymgal.SSP_models("bc03_ssp", IMF="chab", has_masses=True)  # Prepare SSP models
+    # Load group information
+    groupinfo = np.loadtxt(os.path.join(cat_path, f"{Code}_R200c_snaps_128-center-cluster.txt"))
+    pregen = np.zeros((groupinfo.shape[0], 129), dtype=np.int64) - 1
+    pregen[:, 128] = np.int64(groupinfo[:, 1])
+
+    halo = np.loadtxt(os.path.join(cat_path, f"NewMDCLUSTER_{cluster_num}", f"{Code}-NewMDCLUSTER_{cluster_num}.snap_128.z0.000.AHF_halos"))
+
+    sspmod = pymgal.SSP_models(config["SSP_model"], IMF=config["IMF"], has_masses=True)  # Prepare SSP models
     filters = pymgal.filters(f_name=config["filters"]) #eg: 'sloan_r', 'sloan_u', 'sloan_g', 'sloan_i', 'sloan_z', 'wfc3_f225w', 'wfc3_f606w', 'wfc3_f814w'])  # Load the filters
-    dustf = pymgal.dusts.charlot_fall()  # Dust function
+    dustf = None if chosen_dustf is None else getattr(pymgal.dusts, chosen_dustf)()   #Dust function
 
-
+    
+    sim_file_ext = '.hdf5' if Code == 'GIZMO' else ''   # GadgetX simulation snapshot files have no file extension, while GIZMO has .hdf5
 
     for lp in [int(cluster_num)-1]:
         clnum='0000'+str(lp+1)
@@ -85,10 +88,14 @@ def project_to_fits(cluster_num, config):
         # Get progenitors.
         for i in np.arange(128, earliest_snap_num, -1):
             exts='000'+str(i)
-            head=readsnapgd(data_path+ sim_path + f'NewMDCLUSTER_{cluster_num}/'+'snap_'+exts[-3:],'HEAD')
+            head_path = os.path.join(sim_path, f'NewMDCLUSTER_{cluster_num}', 'snap_' + exts[-3:] + sim_file_ext)
+            head = readsnapgd(head_path, 'HEAD') if Code == 'GadgetX' else readhdf5head(head_path, 'HEAD') if Code == 'GIZMO' else None
+
+
+
             if head.Redshift<0:
                 head.Redshift = 0.0000
-            mtree_index_file=data_path+cat_path+cname+Code+'-'+cname[:-1]+'.snap_'+exts[-3:]+'.z'+("{:.3f}".format(head.Redshift,9))[:5]+'.AHF_mtree_idx'
+            mtree_index_file = os.path.join(cat_path, cname + Code + '-' + cname[:-1] + '.snap_' + exts[-3:] + '.z' + ("{:.3f}".format(head.Redshift, 9))[:5] + '.AHF_mtree_idx')
 
             if os.path.isfile(mtree_index_file):
                 mtid=np.loadtxt(mtree_index_file)
@@ -110,12 +117,17 @@ def project_to_fits(cluster_num, config):
             projections = chosen_proj_vecs + random_proj_vecs
 
             # Load halos and merger trees
-            head=readsnapgd(data_path+sim_path+f"NewMDCLUSTER_{cluster_num}/"+snapname,'HEAD')
+
+            head_path = os.path.join(sim_path, f'NewMDCLUSTER_{cluster_num}', snapname + sim_file_ext)
+            head = readsnapgd(head_path, 'HEAD') if Code == 'GadgetX' else readhdf5head(head_path, 'HEAD') if Code == 'GIZMO' else None
+
+
             if head.Redshift<0:
                 head.Redshift = 0.0000
             sn = np.int64(snapname[-3:])
             hid= pregen[lp,sn]
-            halo_file=data_path + cat_path + cname + Code + '-'+cname[:-1]+'.'+snapname+'.z'+("{:.3f}".format(head.Redshift,9))[:5]+'.AHF_halos'
+            halo_file=os.path.join(cat_path, cname, Code + '-'+cname[:-1]+'.'+snapname+'.z'+("{:.3f}".format(head.Redshift,9))[:5]+'.AHF_halos')
+            
             if os.path.isfile(halo_file):
                 halo=np.loadtxt(halo_file)
                 print("AHF halo file successfully found: ", halo_file)
@@ -129,30 +141,30 @@ def project_to_fits(cluster_num, config):
 
             for j in shid:
                 cc=halo[j,5:8]; rr = halo[j,11]
+                
                 # Load simulation data
-                simd = pymgal.load_data(data_path+sim_path+cname+snapname, snapshot=True, center=cc, radius=rr*1.4)
+                simd = pymgal.load_data(head_path, snapshot=True, center=cc, radius=rr*1.4)
 
                 # Calculate luminosity
-                if simd.redshift < 0.5:
-                    mag = filters.calc_energy(sspmod, simd, Ncpu=16, unit=outiv, rest_frame=True)
-                else:
-                    mag = filters.calc_energy(sspmod, simd, Ncpu=16, unit=outiv, dust_func=dustf, rest_frame=True)
-
+                mag = filters.calc_energy(sspmod, simd, Ncpu=16, unit=outiv, rest_frame=True)
 
                 # Rotate and project
-                z = max(0.14, simd.redshift)  #77105
+                z_obs = config["z_obs"] if config["z_obs"] is not None else max(0.10, simd.redshift)
+
+                # Rotate and project
                 for i, proj_direc in enumerate(projections):
 
                     pj = None #Initialize
                     if i==0:
                         print("Projecting photons to %s" % proj_direc)
-                        pj = pymgal.projection(mag, simd, npx=256, unit=outiv, AR=config["AR"], redshift=z,
+                        pj = pymgal.projection(mag, simd, npx=config["npx"], unit=outiv, AR=config["AR"], redshift=config["z_obs"], zthick=config["zthick"],
                                                axis=proj_direc, ksmooth=config["ksmooth"], outmas=config["outmas"], outage=config["outage"], outmet=config["outmet"])
                         lsmooth = pj.lsmooth
-
+                     
+                    # Avoid redundantly recomputing kNN distances by passing the pre-computed array 
                     else:
                         print("Projecting photons to %s" % proj_direc)
-                        pj = pymgal.projection(mag, simd, npx=256, unit=outiv, AR=config["AR"], redshift=z,
+                        pj = pymgal.projection(mag, simd, npx=config["npx"], unit=outiv, AR=config["AR"], redshift=config["z_obs"], zthick=config["zthick"],
                                            axis=proj_direc, ksmooth=config["ksmooth"], lsmooth=lsmooth, outmas=config["outmas"], outage=config["outage"], outmet=config["outmet"])
 
 
@@ -176,7 +188,6 @@ if __name__ == "__main__":
     parser.add_argument("--config_file", type=str, default="./config.yaml", help="Path to your config file. If you have your own custom config file, enter it here. \
                         Note that some of the parameters in the config file can be overruled by passing arguments to this script.\n \
                         Default: ./config.yaml")
-    parser.add_argument("--data_dir", type=str, help="Directory path containing your simulation data.")
     parser.add_argument("--start_cluster", type=int, help="An integer between 1 and 324 which represents the index of the first cluster you'd like to project. \n  \
                         If you want to project a range of clusters in a single run, you must also specify the final cluster index via the --end_cluster argument.\n \
                         If you only want to project a single cluster, pass its index here and pass nothing to the --end_cluster argument.")
