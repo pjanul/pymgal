@@ -1,14 +1,21 @@
-data_dir: "/niftydata/TheThreeHundred/data/"                                # The directory containing your data (must follow the 300 Project's file setup)
-start_cluster: 10                                                           # The index of the first cluster you want to project
+sim_dir: "/GIZMO-SIMBA"                                                     # The directory containing your simulation snapshot files. Must follow the format specified in the README
+cat_dir: "/niftydata/TheThreeHundred/data/catalogues/AHF/GIZMO"             # The directory containing your catalogue files. Must follow the format specified in the README
+start_cluster: 300                                                           # The index of the first cluster you want to project
 end_cluster: null                                                           # The index of the last cluster you want to project. If set to null, only the start_cluster will be projected
-filters: ["sloan_u", "sloan_g", "sloan_r", "sloan_i", "sloan_z",]           # The filters you want for your mock observations
-snaps: ["snap_128"]                                                         # A list snap numbers. Snap numbers start at snap_128 (z=0) and decrease as z increases
+filters: ["sloan_r", "sloan_i"]                                            # The filters you want for your mock observations
+snaps: ["snap_127"]                                                         # A list snap numbers. Snap numbers start at snap_128 (z=0) and decrease as z increases
 num_random_proj: 0                                                          # The number of random projections you want. Can be zero only proj_vecs is not null.
 proj_vecs: "x"                                                              # A list projection vectors. Can be "x", "y", "z" (principal axes), or a custom [x, y, z] in cartesian. Can be null only if num_random_proj > 0.
-code: "GadgetX"                                                             # The simulation code used to create this data
-outiv: "flux"                                                               # Whether you want your images to show "flux", "magnitude", or "luminosity"
-AR: 1.2                                                                     # The angular resolution of your mock observation
+code: "GIZMO"                                                              # The simulation code used to create this data. Can be either "GIZMO" or "GadgetX" 
+outiv: "luminosity"                                                               # Whether you want your images to show "flux", "magnitude", or "luminosity"
+AR: 1.2                                                                     # Angular resolution (arcsec). If null, it is automatically calculated. If AR is null and npx is "auto", npx defaults to 512
+SSP_model: "bc03_ssp"                                                       # The simple stellar population (SSP) model you want to use. Full list can be found at pymgal/pymgal/models
+IMF: "chab"                                                                 # The initial mass function (IMF) assumed by the SSP model. Can be either "chab", "krou", or  "salp" (ie Chabrier, Kroupa, or Salpeter)
+dust_func: null                                                             # The assumed dust function. Can be either "charlot_fall" or "calzetti" (ie Charlot and Fall (2000)  or Calzetti et al (2000))
 ksmooth: 30                                                                 # A smoothing parameter of at least 0 used in kNN Gaussian smoothing. The greater ksmooth, the smoother the image.
-outmas: True                                                                # Output the mass map corresponding to your data
-outage: True                                                                # Output the age map corresponding to your data
-outmet: True                                                                # Output the metallicity map corresponding to your data
+z_obs: null                                                                 # The distance of the observation from the observer's POV. This DOES NOT affect age/evolution, only the apparent distance. If null, it defaults to max(0.10, sim z) 
+npx: 256                                                                    # The number of pixels in the output image. Can also be set to "auto" which will automatically decide the pixel number to include all particles
+zthick: null                                                                 # The thickness cut ([center-zthick, center+zthick]) in the projection direction in kpc/h. If null, all the data is used (ie no cut is applied)
+outmas: False                                                                # Output the mass map corresponding to your data
+outage: False                                                                # Output the age map corresponding to your data
+outmet: False                                                                # Output the metallicity map corresponding to your data
