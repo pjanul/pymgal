@@ -51,18 +51,31 @@ def merge_settings(config, args):
             config[key] = value
     return config
 
+
+def handle_input(config):
+    # Handle some invalid inputs that aren't handled elsewhere
+    if config["out_val"].lower() not in {"flux", "magnitude", "luminosity"}:
+        raise ValueError(f"Invalid out_val: {config['out_val']} Expected 'flux', 'magnitude', or 'luminosity'.") 
+
+    if (config["mag_type"].lower() not in {"vega", "solar", "apparent", "ab"}) and (config["out_val"]  == "magnitude"):
+        raise ValueError(f"Invalid mag_type: {config['mag_type']}. Expected 'vega', 'solar', 'apparent', or 'AB'.")
+    
+    if config["code"] not in {"GadgetX", "GIZMO", "GIZMO_7k"}:
+        raise ValueError(f"Invalid code: {config['code']}. Expected 'GadgetX', 'GIZMO', or 'GIZMO_7k'. Note that this parameter is case sensitive.")
+
 # The function which handles the data and creates the projections
 def project_to_fits(cluster_num, config):
+
+    handle_input(config)
 
     # Initialize some variables
     snaps = config["snaps"]
     Code = config["code"]
-    outiv = config["outiv"]  
+    out_val = config["out_val"].lower()  
     cat_path = config["cat_dir"] 
     sim_path = config["sim_dir"] 
-    chosen_dustf = config["dust_func"]
-
-
+    
+  
     # Load group information
     groupinfo = np.loadtxt(os.path.join(cat_path, f"{Code}_R200c_snaps_128-center-cluster.txt"))
     pregen = np.zeros((groupinfo.shape[0], 129), dtype=np.int64) - 1
@@ -72,8 +85,8 @@ def project_to_fits(cluster_num, config):
 
     sspmod = pymgal.SSP_models(config["SSP_model"], IMF=config["IMF"], has_masses=True)  # Prepare SSP models
     filters = pymgal.filters(f_name=config["filters"]) #eg: 'sloan_r', 'sloan_u', 'sloan_g', 'sloan_i', 'sloan_z', 'wfc3_f225w', 'wfc3_f606w', 'wfc3_f814w'])  # Load the filters
-    dustf = None if chosen_dustf is None else getattr(pymgal.dusts, chosen_dustf)()   #Dust function
-
+    dustf = None if config["dust_func"] is None else getattr(pymgal.dusts, config["dust_func"].lower())()   #Dust function
+    print("Dust function being used: ", dustf) 
     
     sim_file_ext = '.hdf5' if Code == 'GIZMO' else ''   # GadgetX simulation snapshot files have no file extension, while GIZMO has .hdf5
 
@@ -89,9 +102,7 @@ def project_to_fits(cluster_num, config):
         for i in np.arange(128, earliest_snap_num, -1):
             exts='000'+str(i)
             head_path = os.path.join(sim_path, f'NewMDCLUSTER_{cluster_num}', 'snap_' + exts[-3:] + sim_file_ext)
-            head = readsnapgd(head_path, 'HEAD') if Code == 'GadgetX' else readhdf5head(head_path, 'HEAD') if Code == 'GIZMO' else None
-
-
+            head = readsnapgd(head_path, 'HEAD') if Code == 'GadgetX' else readhdf5head(head_path, 'HEAD') if Code in ['GIZMO', 'GIZMO_7k'] else None
 
             if head.Redshift<0:
                 head.Redshift = 0.0000
@@ -113,13 +124,15 @@ def project_to_fits(cluster_num, config):
             chosen_proj_vecs=[]
             if config["proj_vecs"] is not None:
                 chosen_proj_vecs = [np.array(elem) if isinstance(elem, list) else elem for elem in config["proj_vecs"]]
+
             random_proj_vecs =  random_proj_dict.get(snapname)
-            projections = chosen_proj_vecs + random_proj_vecs
+            projections = chosen_proj_vecs + random_proj_vecs + config["proj_angles"]
+            
 
             # Load halos and merger trees
 
             head_path = os.path.join(sim_path, f'NewMDCLUSTER_{cluster_num}', snapname + sim_file_ext)
-            head = readsnapgd(head_path, 'HEAD') if Code == 'GadgetX' else readhdf5head(head_path, 'HEAD') if Code == 'GIZMO' else None
+            head = readsnapgd(head_path, 'HEAD') if Code == 'GadgetX' else readhdf5head(head_path, 'HEAD') if Code in ['GIZMO', 'GIZMO_7k'] else None
 
 
             if head.Redshift<0:
@@ -144,27 +157,31 @@ def project_to_fits(cluster_num, config):
                 
                 # Load simulation data
                 simd = pymgal.load_data(head_path, snapshot=True, center=cc, radius=rr*1.4)
+                
+                # Configure AB, vega, solar, or apparent magnitude given the user's input
+                mag_type = config["mag_type"].lower()
+                is_vega, is_solar, is_apparent = (mag_type == "vega", mag_type == "solar", mag_type == "apparent")
 
                 # Calculate luminosity
-                mag = filters.calc_energy(sspmod, simd, Ncpu=16, unit=outiv, rest_frame=True)
+                mag = filters.calc_energy(sspmod, simd, dust_func=dustf, vega=is_vega, apparent=is_apparent, solar=is_solar, Ncpu=16, unit=out_val, rest_frame=config["rest_frame"])
 
                 # Rotate and project
-                z_obs = config["z_obs"] if config["z_obs"] is not None else max(0.10, simd.redshift)
-
+                z_obs = config["z_obs"] if config["z_obs"] is not None else max(0.05, simd.redshift)
+                
                 # Rotate and project
                 for i, proj_direc in enumerate(projections):
 
                     pj = None #Initialize
                     if i==0:
                         print("Projecting photons to %s" % proj_direc)
-                        pj = pymgal.projection(mag, simd, npx=config["npx"], unit=outiv, AR=config["AR"], redshift=config["z_obs"], zthick=config["zthick"],
+                        pj = pymgal.projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=z_obs, zthick=config["zthick"],
                                                axis=proj_direc, ksmooth=config["ksmooth"], outmas=config["outmas"], outage=config["outage"], outmet=config["outmet"])
                         lsmooth = pj.lsmooth
                      
                     # Avoid redundantly recomputing kNN distances by passing the pre-computed array 
                     else:
                         print("Projecting photons to %s" % proj_direc)
-                        pj = pymgal.projection(mag, simd, npx=config["npx"], unit=outiv, AR=config["AR"], redshift=config["z_obs"], zthick=config["zthick"],
+                        pj = pymgal.projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=config["z_obs"], zthick=config["zthick"],
                                            axis=proj_direc, ksmooth=config["ksmooth"], lsmooth=lsmooth, outmas=config["outmas"], outage=config["outage"], outmet=config["outmet"])
 
 
@@ -176,7 +193,8 @@ def project_to_fits(cluster_num, config):
                     # If the projection direction has type np.ndarray, change the format; otherwise DS9 can't open it
                     if (isinstance(proj_direc, np.ndarray)):
                         proj_direc = f"({';'.join(map(str, proj_direc))})"
-
+                    if (isinstance(proj_direc, list)):
+                        proj_direc = f"({'°,'.join(map(str, proj_direc))}°)"
                     pj.write_fits_image(output_dir + f"/NewMDCLUSTER_{cluster_num}-{snapname}-{proj_direc}.fits", overwrite=True)
 
 
