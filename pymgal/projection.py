@@ -4,7 +4,6 @@ import re
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
 from scipy.spatial import KDTree
-import pandas as pd
 from functools import lru_cache
 from pymgal import __version__
 # scipy must >= 0.17 to properly use this!
