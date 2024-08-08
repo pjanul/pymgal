@@ -27,13 +27,14 @@ For a given cluster at a given redshift, you'll need the corresponding (1) snap_
 ├── sim_dir
     ├── NewMDCLUSTER_0001
         ├── snap_128.hdf5
+        ├── snap_127.hdf5
         ├── more snap_ files 
     ├── More NewMDCLUSTER_ directories...
 
 ├── cat_dir 
     ├── GIZMO_R200c_snaps_128-center-cluster.txt
     ├── NewMDCLUSTER_0001
-         ├── GIZMO-NewMDCLUSTER_0001_snap_128.z0.000.AHF_halos
+         ├── GIZMO-NewMDCLUSTER_0001.snap_128.z0.000.AHF_halos
          ├── GIZMO-NewMDCLUSTER_0001.snap_128.z0.000.AHF_mtree 
          ├── GIZMO-NewMDCLUSTER_0001.snap_128.z0.000.AHF_mtree_idx
          ├── More AHF_halos, AHF_mtree, and AHF_mtree_idx files...
