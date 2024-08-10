@@ -65,7 +65,7 @@ class load_data(object):
 
     def _load_snap(self, filename, nmetal):
         if filename[-4:]=='hdf5':
-            head = readsnap(filename, "Header", quiet=True)
+            head = readsnap(filename, "HEAD", quiet=True)
         else:
             head = readsnap(filename, "HEAD", quiet=True)
         self.cosmology = FlatLambdaCDM(head.HubbleParam * 100, head.Omega0)
