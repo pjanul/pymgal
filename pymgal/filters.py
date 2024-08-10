@@ -220,17 +220,16 @@ class filters(object):
     ##############
     #  calc energy in filter  #
     ##############
-    def calc_energy(self, sspmod, simd, fn=None, Ncpu=1, dust_func=None, unit='flux',
+    def calc_energy(self, sspmod, simd, fn=None, dust_func=None, unit='flux',
                     apparent=False, vega=False, solar=False, rest_frame=False):
         r"""
-        mag = pymgal.calc_energy(self, sspmod, simd, fn=None, Ncpu=1, dust_func=None, unit='flux',
+        mag = pymgal.calc_energy(self, sspmod, simd, fn=None, dust_func=None, unit='flux',
                                  apparent=False, vega=False, solar=False, rest_frame=False):
 
         sspmod      : loaded ssp models.
         simd        : loaded simulation data from load_data
         fn          : the name of filter/s. string, list of strings, or None
                         By default (None), all loaded filters will be included in the calculation
-        Ncpu        : The number of CPUs for parallel interpolation, default = 1
         dust_func   : The function for dust attenuetion.
         unit        : the returned value in the filter bands, default : Flux.
                         It can be 'luminosity' or 'magnitude'
@@ -282,10 +281,10 @@ class filters(object):
 
         #if not rest_frame:
         #    vsn = vs / (1 + redshift)
-        #    interp = interp1d(vsn, sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv'), axis=0,
+        #    interp = interp1d(vsn, sspmod.get_seds(simd, rest_frame=rest_frame, dust_func=dust_func, units='fv'), axis=0,
         #                      bounds_error=False, fill_value="extrapolate")
         #else:
-        vsn, sedn = sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv')
+        vsn, sedn = sspmod.get_seds(simd, rest_frame=rest_frame, dust_func=dust_func, units='fv')
         interp = interp1d(vsn, sedn, axis=0, bounds_error=False, fill_value="extrapolate")
         print("Interpolation for the SEDs are done.")
 
