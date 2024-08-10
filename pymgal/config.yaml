@@ -1,16 +1,17 @@
 sim_dir: "/GIZMO-SIMBA"                                                # The directory containing your simulation snapshot files. Must follow the format specified in the README
 cat_dir: "/niftydata/TheThreeHundred/data/catalogues/AHF/GIZMO"             # The directory containing your catalogue files. Must follow the format specified in the README
+custom_coords: False                                                       # Are you using custom coordinates for the centre/radius of your projection? If True, coords.npy files must be included as instructed in the README
 code: "GIZMO"                                                              # The simulation code that matches the data found at sim_dir and cat_dir. Can be either "GadgetX", "GIZMO", or "GIZMO_7k" (case sensitive)
-start_cluster: 300                                                           # The index of the first cluster you want to project
-end_cluster: null                                                           # The index of the last cluster you want to project. If set to null, only the start_cluster will be projected
+obj_list: ["NewMDCLUSTER_0300"]                                              # The list of objects you want to project
 filters: ["sloan_u"]                                            # The filters you want for your mock observations
-snaps: ["snap_128"]                                                         # A list snap numbers. Snap numbers start at snap_128 (z=0) and decrease as z increases
+snaps: ["snap_128", "snap_127"]                                                         # A list snap numbers. Snap numbers start at snap_128 (z=0) and decrease as z increases
+ncpu: 2                                                                    # The number of CPUs used for parallelization
 num_random_proj: 0                                                          # The number of random projections you want. Can be 0. NOTE: setting num_random_proj = 0, proj_vecs = null, and proj_angles = null will cause an error.
 proj_vecs: ["x"]                                                              # A list projection vectors. Can be "x", "y", "z" (principal axes), and/or a custom [x, y, z] in cartesian. Can be null.
 proj_angles: [[30,0,0]]                                                    # A list of angles [alpha, beta, gamma] (degrees) used to rotate around the x, y, z axes respectively. Does the same task as proj_vecs, so you can use either/both. Can be null.
-out_val: "flux"                                                               # Whether you want the output values to be "flux", "magnitude", or "luminosity"
+out_val: "luminosity"                                                               # Whether you want the output values to be "flux", "magnitude", or "luminosity"
 mag_type: "AB"                                                              # If out_val = "magnitude", choose "AB", "vega", "solar", or "apparent" magnitude. If out_val != "magnitude", this does nothing.
-rest_frame: False                                                           # If True, results are in rest frame. Otherwise, they are in observer's frame.
+rest_frame: True                                                           # If True, results are in rest frame. Otherwise, they are in observer's frame.
 AR: 1.2                                                                     # Angular resolution (arcsec). If null, it is automatically calculated. If AR is null and npx is "auto", npx defaults to 512
 SSP_model: "bc03_ssp"                                                       # The simple stellar population (SSP) model you want to use. Full list can be found at pymgal/pymgal/models
 IMF: "chab"                                                                 # The initial mass function (IMF) assumed by the SSP model. Can be either "chab", "krou", or  "salp" (ie Chabrier, Kroupa, or Salpeter)
@@ -21,4 +22,4 @@ npx: 256                                                                    # Th
 zthick: null                                                                 # The thickness cut ([center-zthick, center+zthick]) in the projection direction in kpc/h. If null, all the data is used (ie no cut is applied)
 outmas: False                                                                # Output the mass map corresponding to your data
 outage: False                                                                # Output the age map corresponding to your data
-outmet: False                                                                # Output the metallicity map corresponding to your data
+outmet: False                                                                # Output the metallicity map corresponding to your data                                                      # Output the metallicity map corresponding to your data
