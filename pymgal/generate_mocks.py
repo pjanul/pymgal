@@ -1,16 +1,29 @@
-import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
 from astropy.io import fits
 import os, sys
 from os.path import dirname, abspath
-from readsnapsgl import readsnapgd, readhdf5head
-from PIL import Image
+from readsnapsgl import readsnapgd, readhdf5head, readsnap
 import argparse
 import yaml
+import re
+import json
+import multiprocessing
 d = dirname(dirname(abspath(__file__)))
 sys.path.append(d)
 import pymgal
+
+
+# Worker functions for parallel processing
+def process_object(object_dir, config):
+    print(f"-------------------- {object_dir} ---------------------")
+    project_to_fits(object_dir, config)
+
+def process_snapshot(params):
+    object_dir, snapname, config = params
+    config["snaps"] = [snapname]  # Process one snapshot at a time
+    print(f"-------------------- {object_dir} ---------------------")
+    project_to_fits(object_dir, config)
+
 
 
 # Generate a list of cluster numbers such as "0001", "0002", etc.
@@ -26,6 +39,7 @@ def create_number_strings(start, end):
             number_strings.append(num_string)
 
     return number_strings
+
 
 # Generate n random projection vectors
 def random_projections(n_samples):
@@ -60,11 +74,91 @@ def handle_input(config):
     if (config["mag_type"].lower() not in {"vega", "solar", "apparent", "ab"}) and (config["out_val"]  == "magnitude"):
         raise ValueError(f"Invalid mag_type: {config['mag_type']}. Expected 'vega', 'solar', 'apparent', or 'AB'.")
     
-    if config["code"] not in {"GadgetX", "GIZMO", "GIZMO_7k"}:
-        raise ValueError(f"Invalid code: {config['code']}. Expected 'GadgetX', 'GIZMO', or 'GIZMO_7k'. Note that this parameter is case sensitive.")
+
+
+def get_progenitors(snaps, object_dir, sim_path, cat_path, Code, sim_file_ext=''):
+    
+    snapnum_list = [int(snap.replace("snap_", "")) for snap in snaps]
+    
+    # Load group information
+    groupinfo = np.loadtxt(os.path.join(cat_path, f"{Code}_R200c_snaps_128-center-cluster.txt"))
+    pregen = np.zeros((groupinfo.shape[0], 129), dtype=np.int64) - 1
+    pregen[:, 128] = np.int64(groupinfo[:, 1])
+
+    try:
+        cluster_num = object_dir.split('_')[1]
+    except:
+        raise ValueError("If you're using AHF halos and merger trees to get coordinates, they must end in _X, where X is some sequence of digits (e.g. NewMDCLUSTER_0324)")
+
+    # See how far back your progrenitors need to go
+    earliest_snap_num = min([int(snapname.split('_')[-1]) for snapname in snaps])
+
+    lp = [int(cluster_num) -1]
+
+    # Get progenitors.
+    for i in np.arange(128, earliest_snap_num, -1):
+        exts='000'+str(i)
+
+        head_path = os.path.join(sim_path, object_dir, 'snap_' + exts[-3:] + sim_file_ext)
+        head = readsnap(head_path, 'HEAD') 
+
+        if head.Redshift<0:
+            head.Redshift = 0.0000
+        mtree_index_file = os.path.join(cat_path, object_dir, Code + '-' + object_dir + '.snap_' + exts[-3:] + '.z' + ("{:.3f}".format(head.Redshift, 9))[:5] + '.AHF_mtree_idx')
+
+        if os.path.isfile(mtree_index_file):
+            mtid=np.loadtxt(mtree_index_file)
+            print("AHF merger tree index file successfully found: ", mtree_index_file)
+        else:
+            raise ValueError('Cannot find merger tree index file %s' % mtree_index_file)
+
+
+        pregen[lp,i-1]=mtid[mtid[:,0]==pregen[lp,i],1]
+    return pregen
+
+
+def get_coords(snapname, object_dir, sim_path, cat_path, Code, pregen, custom=False, sim_file_ext=''):
+
+    if custom:
+
+        print("Using user-defined coordinates")
+        coords_path = os.path.join(cat_path, object_dir, object_dir + "_" + snapname + "_coords.npy")
+        arr = np.load(coords_path, allow_pickle=True)
+        cc, rr = arr[:3], arr[-1]
+        return cc, rr
+
+    cluster_num = object_dir[-3:]
+
+    lp = [int(cluster_num) -1]
+    sn = np.int64(snapname[-3:])
+    hid= pregen[lp,sn]
+
+    head_path = os.path.join(sim_path, object_dir, snapname + sim_file_ext)
+    head = readsnap(head_path, 'HEAD')
+    if head.Redshift<0:
+        head.Redshift = 0.0000
+    halo_file=os.path.join(cat_path, object_dir, Code + '-'+ object_dir +'.'+snapname+'.z'+("{:.3f}".format(head.Redshift,9))[:5]+'.AHF_halos')
+
+    if os.path.isfile(halo_file):
+        halo=np.loadtxt(halo_file)
+        print("AHF halo file successfully found: ", halo_file)
+    else:
+        raise ValueError('Cannot find halo file  %s' % halo_file)
+
+    shid = np.where(np.int64(halo[:,0]) == hid)[0]
+    if len(shid) == 0:
+        raise ValueError('Cannot find halos!! %s' % snapname)
+
+    for j in shid:
+        cc=halo[j,5:8]; rr = halo[j,11]
+        print("Centre, radius", cc, rr)
+
+    return cc, rr
+
+
 
 # The function which handles the data and creates the projections
-def project_to_fits(cluster_num, config):
+def project_to_fits(object_dir, config):
 
     handle_input(config)
 
@@ -75,127 +169,71 @@ def project_to_fits(cluster_num, config):
     cat_path = config["cat_dir"] 
     sim_path = config["sim_dir"] 
     
-  
-    # Load group information
-    groupinfo = np.loadtxt(os.path.join(cat_path, f"{Code}_R200c_snaps_128-center-cluster.txt"))
-    pregen = np.zeros((groupinfo.shape[0], 129), dtype=np.int64) - 1
-    pregen[:, 128] = np.int64(groupinfo[:, 1])
-
-    halo = np.loadtxt(os.path.join(cat_path, f"NewMDCLUSTER_{cluster_num}", f"{Code}-NewMDCLUSTER_{cluster_num}.snap_128.z0.000.AHF_halos"))
-
+    # Prepare SSP models, filters, and dust function
     sspmod = pymgal.SSP_models(config["SSP_model"], IMF=config["IMF"], has_masses=True)  # Prepare SSP models
     filters = pymgal.filters(f_name=config["filters"]) #eg: 'sloan_r', 'sloan_u', 'sloan_g', 'sloan_i', 'sloan_z', 'wfc3_f225w', 'wfc3_f606w', 'wfc3_f814w'])  # Load the filters
     dustf = None if config["dust_func"] is None else getattr(pymgal.dusts, config["dust_func"].lower())()   #Dust function
     print("Dust function being used: ", dustf) 
+            
+    sim_file_ext = ''
+    if not os.path.isfile(os.path.join(sim_path, object_dir, 'snap_128')) and os.path.isfile(os.path.join(sim_path, object_dir, 'snap_128' + ".hdf5")):
+        sim_file_ext = '.hdf5'
+    elif os.path.isfile(os.path.join(sim_path, object_dir, 'snap_128')) and os.path.isfile(os.path.join(sim_path, object_dir, 'snap_128' + ".hdf5")):
+        raise ValueError("Do not include multiple simulation snapshot files in the same directory.")
+
+
+    pregen = None
+    if not config["custom_coords"]:
+        pregen = get_progenitors(snaps, object_dir, sim_path, cat_path, Code, sim_file_ext)
     
-    sim_file_ext = '.hdf5' if Code == 'GIZMO' else ''   # GadgetX simulation snapshot files have no file extension, while GIZMO has .hdf5
+    for snapname in snaps:
+        # Convert any custom projection vector to a numpy array and combine with the random arrays
+        chosen_proj_vecs=[]
+        if config["proj_vecs"] is not None:
+            chosen_proj_vecs = [np.array(elem) if isinstance(elem, list) else elem for elem in config["proj_vecs"]]
 
-    for lp in [int(cluster_num)-1]:
-        clnum='0000'+str(lp+1)
-        clnum=clnum[-4:]
-        cname = "NewMDCLUSTER_"+clnum+"/"
-
-        # See how far back your progrenitors need to go
-        earliest_snap_num = min([int(snapname.split('_')[-1]) for snapname in snaps])
-
-        # Get progenitors.
-        for i in np.arange(128, earliest_snap_num, -1):
-            exts='000'+str(i)
-            head_path = os.path.join(sim_path, f'NewMDCLUSTER_{cluster_num}', 'snap_' + exts[-3:] + sim_file_ext)
-            head = readsnapgd(head_path, 'HEAD') if Code == 'GadgetX' else readhdf5head(head_path, 'HEAD') if Code in ['GIZMO', 'GIZMO_7k'] else None
-
-            if head.Redshift<0:
-                head.Redshift = 0.0000
-            mtree_index_file = os.path.join(cat_path, cname + Code + '-' + cname[:-1] + '.snap_' + exts[-3:] + '.z' + ("{:.3f}".format(head.Redshift, 9))[:5] + '.AHF_mtree_idx')
-
-            if os.path.isfile(mtree_index_file):
-                mtid=np.loadtxt(mtree_index_file)
-                print("AHF merger tree index file successfully found: ", mtree_index_file)
-            else:
-                raise ValueError('Cannot find merger tree index file %s' % mtree_index_file)
-
-
-            pregen[lp,i-1]=mtid[mtid[:,0]==pregen[lp,i],1]
-
-
-
-        for snapname in snaps:
-            # Convert any custom projection vector to a numpy array and combine with the random arrays
-            chosen_proj_vecs=[]
-            if config["proj_vecs"] is not None:
-                chosen_proj_vecs = [np.array(elem) if isinstance(elem, list) else elem for elem in config["proj_vecs"]]
-
-            random_proj_vecs =  random_proj_dict.get(snapname)
-            projections = chosen_proj_vecs + random_proj_vecs + config["proj_angles"]
+        random_proj_vecs = random_projections(config["num_random_proj"])# random_proj_dict.get(snapname)
+        projections = chosen_proj_vecs + random_proj_vecs + config["proj_angles"]
             
+        cc, rr = get_coords(snapname, object_dir, sim_path, cat_path, Code, pregen, custom=config["custom_coords"], sim_file_ext=sim_file_ext) 
 
-            # Load halos and merger trees
-
-            head_path = os.path.join(sim_path, f'NewMDCLUSTER_{cluster_num}', snapname + sim_file_ext)
-            head = readsnapgd(head_path, 'HEAD') if Code == 'GadgetX' else readhdf5head(head_path, 'HEAD') if Code in ['GIZMO', 'GIZMO_7k'] else None
-
-
-            if head.Redshift<0:
-                head.Redshift = 0.0000
-            sn = np.int64(snapname[-3:])
-            hid= pregen[lp,sn]
-            halo_file=os.path.join(cat_path, cname, Code + '-'+cname[:-1]+'.'+snapname+'.z'+("{:.3f}".format(head.Redshift,9))[:5]+'.AHF_halos')
-            
-            if os.path.isfile(halo_file):
-                halo=np.loadtxt(halo_file)
-                print("AHF halo file successfully found: ", halo_file)
-            else:
-                raise ValueError('Cannot find halo file  %s' % halo_file)
-
-            shid = np.where(np.int64(halo[:,0]) == hid)[0]
-            if len(shid) == 0:
-                raise ValueError('Cannot find halos!! %s' % snapname)
-
-
-            for j in shid:
-                cc=halo[j,5:8]; rr = halo[j,11]
+        head_path = os.path.join(sim_path, object_dir, snapname + sim_file_ext)
+        head = readsnap(head_path, 'HEAD')
+        
+        # Load the data, handle some user input, and calculate energy
+        simd = pymgal.load_data(head_path, snapshot=True, center=cc, radius=rr*1.4)
+        mag_type = config["mag_type"].lower()
+        is_vega, is_solar, is_apparent = (mag_type == "vega", mag_type == "solar", mag_type == "apparent")
+        z_obs = config["z_obs"] if config["z_obs"] is not None else max(0.05, simd.redshift)
+        mag = filters.calc_energy(sspmod, simd, dust_func=dustf, vega=is_vega, apparent=is_apparent, solar=is_solar, unit=out_val, rest_frame=config["rest_frame"])
                 
-                # Load simulation data
-                simd = pymgal.load_data(head_path, snapshot=True, center=cc, radius=rr*1.4)
-                
-                # Configure AB, vega, solar, or apparent magnitude given the user's input
-                mag_type = config["mag_type"].lower()
-                is_vega, is_solar, is_apparent = (mag_type == "vega", mag_type == "solar", mag_type == "apparent")
-
-                # Calculate luminosity
-                mag = filters.calc_energy(sspmod, simd, dust_func=dustf, vega=is_vega, apparent=is_apparent, solar=is_solar, Ncpu=16, unit=out_val, rest_frame=config["rest_frame"])
-
-                # Rotate and project
-                z_obs = config["z_obs"] if config["z_obs"] is not None else max(0.05, simd.redshift)
-                
-                # Rotate and project
-                for i, proj_direc in enumerate(projections):
-
-                    pj = None #Initialize
-                    if i==0:
-                        print("Projecting photons to %s" % proj_direc)
-                        pj = pymgal.projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=z_obs, zthick=config["zthick"],
+        # Rotate and project
+        for i, proj_direc in enumerate(projections):
+            pj = None #Initialize
+            if i==0:
+                print("Projecting photons to %s" % proj_direc)
+                pj = pymgal.projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=z_obs, zthick=config["zthick"],
                                                axis=proj_direc, ksmooth=config["ksmooth"], outmas=config["outmas"], outage=config["outage"], outmet=config["outmet"])
-                        lsmooth = pj.lsmooth
+                lsmooth = pj.lsmooth
                      
-                    # Avoid redundantly recomputing kNN distances by passing the pre-computed array 
-                    else:
-                        print("Projecting photons to %s" % proj_direc)
-                        pj = pymgal.projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=config["z_obs"], zthick=config["zthick"],
+            # Avoid redundantly recomputing kNN distances by passing the pre-computed array 
+            else:
+                print("Projecting photons to %s" % proj_direc)
+                pj = pymgal.projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=config["z_obs"], zthick=config["zthick"],
                                            axis=proj_direc, ksmooth=config["ksmooth"], lsmooth=lsmooth, outmas=config["outmas"], outage=config["outage"], outmet=config["outmet"])
 
 
-                    # Create directory if it doesn't already exist
-                    output_dir = config["output_dir"] + f"/maps/CCD/{Code}/NewMDCLUSTER_{cluster_num}"
-                    if not os.path.exists(output_dir):
-                        os.makedirs(output_dir)
+            # Create directory if it doesn't already exist
+            output_dir = os.path.join(config["output_dir"], "maps", "CCD", Code, object_dir)
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
 
-                    # If the projection direction has type np.ndarray, change the format; otherwise DS9 can't open it
-                    if (isinstance(proj_direc, np.ndarray)):
-                        proj_direc = f"({';'.join(map(str, proj_direc))})"
-                    if (isinstance(proj_direc, list)):
-                        proj_direc = f"({'°,'.join(map(str, proj_direc))}°)"
-                    pj.write_fits_image(output_dir + f"/NewMDCLUSTER_{cluster_num}-{snapname}-{proj_direc}.fits", overwrite=True)
+            # If the projection direction has type np.ndarray, change the format; otherwise DS9 can't open it
+            if (isinstance(proj_direc, np.ndarray)):
+                proj_direc = f"({';'.join(map(str, proj_direc))})"
+            if (isinstance(proj_direc, list)):
+                proj_direc = f"({'°,'.join(map(str, proj_direc))}°)"
+            pj.write_fits_image(os.path.join(output_dir, f"{object_dir}-{snapname}-{proj_direc}.fits"), overwrite=True)
 
 
 
@@ -206,12 +244,6 @@ if __name__ == "__main__":
     parser.add_argument("--config_file", type=str, default="./config.yaml", help="Path to your config file. If you have your own custom config file, enter it here. \
                         Note that some of the parameters in the config file can be overruled by passing arguments to this script.\n \
                         Default: ./config.yaml")
-    parser.add_argument("--start_cluster", type=int, help="An integer between 1 and 324 which represents the index of the first cluster you'd like to project. \n  \
-                        If you want to project a range of clusters in a single run, you must also specify the final cluster index via the --end_cluster argument.\n \
-                        If you only want to project a single cluster, pass its index here and pass nothing to the --end_cluster argument.")
-    parser.add_argument("--end_cluster", type=int, help="An integer between 1 and 324 which represents the index of the final cluster you'd like to project. \n \
-                        If nothing is passed here, a single cluster specified by the --start_cluster argument will be projected. \n \
-                        Default value: None.")
     parser.add_argument("--filters", nargs='+', help="A list of strings corresponding to the filters you'd like for your projections.")
     parser.add_argument("--snaps", nargs='+', help="A list of strings corresponding to the snap numbers you'd like for your projections. \n \
                         Note that snap_128 corresponds to redshift 0 and decreasing the snap number increases the redshift.")
@@ -221,9 +253,6 @@ if __name__ == "__main__":
                         Can be set to zero only proj_vecs is not null. If proj_vecs is not null and num_random_proj>0, all the vectors will be used" )
     args = parser.parse_args()
 
-    # Overrule the config.yaml end_cluster if the user inputs a start cluster with no end
-    if args.start_cluster and not args.end_cluster:
-        args.end_cluster = None
 
     config=None  # Initialize
     # Exit if the file doesn't exist or is unreadable. Otherwise load it.
@@ -235,14 +264,25 @@ if __name__ == "__main__":
     config = merge_settings(config, args)
 
 
-    # Create a random set of projection angles for each snap
-    random_proj_dict = {}
-    for snap_name in config["snaps"]:
-        random_proj_dict[snap_name] = random_projections(config["num_random_proj"])
 
-    # Define clusters and create the mock observations
-    cluster_nums = create_number_strings(config["start_cluster"], config["end_cluster"])
+    #cluster_nums = create_number_strings(config["start_index"], config["end_index"])
+    # The list of objects you want to project. Directories must be named after the objects
+    #for object_dir in config["obj_list"]:
+    #    print(f"------------------- {object_dir} -------------------")
+    #    project_to_fits(object_dir, config)
 
-    for cluster_num in cluster_nums:
-        print(f"------------------- Cluster {cluster_num} -------------------")
-        project_to_fits(cluster_num, config)
+    # Determine parallelization strategy
+    num_objects = len(config["obj_list"])
+    num_snaps = len(config["snaps"])
+
+    if num_objects > num_snaps:
+        print("Pooling over objects. Using {config['ncpu']} CPUs")
+        # Parallelize over objects
+        with multiprocessing.Pool(config["ncpu"]) as pool:
+            pool.map(lambda obj: process_object(obj, config), config["obj_list"])
+    else:
+        print(f"Pooling over snaps. Using {config['ncpu']} CPUs")
+        # Parallelize over snapshots for each object
+        params_list = [(obj, snap, config) for obj in config["obj_list"] for snap in config["snaps"]]
+        with multiprocessing.Pool(config["ncpu"]) as pool:
+            pool.map(process_snapshot, params_list)
