@@ -3,7 +3,7 @@ cat_dir: "/niftydata/TheThreeHundred/data/catalogues/AHF/GIZMO"             # Th
 custom_coords: False                                                       # Are you using custom coordinates for the centre/radius of your projection? If True, coords.npy files must be included as instructed in the README
 code: "GIZMO"                                                              # The simulation code that matches the data found at sim_dir and cat_dir. Can be either "GadgetX", "GIZMO", or "GIZMO_7k" (case sensitive)
 obj_list: ["NewMDCLUSTER_0300"]                                              # The list of objects you want to project
-filters: ["sloan_u"]                                            # The filters you want for your mock observations
+filters: ["2mass_h"]                                            # The filters you want for your mock observations
 snaps: ["snap_128", "snap_127"]                                                         # A list snap numbers. Snap numbers start at snap_128 (z=0) and decrease as z increases
 ncpu: 2                                                                    # The number of CPUs used for parallelization
 num_random_proj: 0                                                          # The number of random projections you want. Can be 0. NOTE: setting num_random_proj = 0, proj_vecs = null, and proj_angles = null will cause an error.
