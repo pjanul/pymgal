@@ -157,7 +157,6 @@ def process_snaps(snaps, cluster_name, sim_dir, cat_dir, code, config, output_di
     sim_file_ext = '' if "gadget" in code.lower() else '.hdf5'
 
     output_dir = os.path.join(output_dir, cluster_name)
-
     pregen = get_progenitors(snaps, cluster_name, sim_dir, cat_dir, code, config, output_dir, sim_file_ext)
     for snap in snaps:
         sim_file = os.path.join(sim_dir, cluster_name, snap + sim_file_ext)
@@ -167,6 +166,7 @@ def process_snaps(snaps, cluster_name, sim_dir, cat_dir, code, config, output_di
         # Run generate_mocks.py at the command line
         command = ["python", "generate_mocks.py", sim_file, config_file_path, output_dir]
         command.extend(["--coords"] + coords_str)
+        command.extend(["--prefix", cluster_name])
         subprocess.run(command)
 
 
@@ -187,4 +187,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
