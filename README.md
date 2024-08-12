@@ -27,7 +27,7 @@
 
 * Once everything is set up, you can begin generating mock observations. To do so, enter the inner PyMGal directory /your/path/to/pymgal/pymgal and run the following at command line.
 
-    *  **`python generate_mocks.py <snap_XYZ> <coords> <output_dir>`**
+    *  **`python generate_mocks.py <snapshot_file> <config_file> <output_dir>`**
 
 
 
@@ -39,17 +39,17 @@
 #### Input:
 
 * The snapshot simulation file. Can be any flavour or Gadget or GIZMO. Can be formatted snap_XYZ or snap_XYZ.hdf5.
-* A list [x, y, z, r] where (x, y, z) is the centre of the projection region and r is its radius. 
+* A list [x, y, z, r] where (x, y, z) is the centre of the projection region and r is its radius, both in physical. 
 * The directory where you'd like to output your files.
 
 #### Output:
-* One FITS file for each selected projection angle and filter. File names will be formatted snap_{XYZ}-{proj_angle}-{filter}.fits. 
+* One FITS file for each selected projection angle and filter. File names will be formatted snap_{XYZ}-{proj_angle}-{filter}.fits. If you specify a prefix in the config file, they will be formatted {prefix}-snap_{XYZ}-{proj_angle}-{filter}.fits.
 
 ## What if I don't know the coordinates for my projections?
 
 * In this case, you'll probably need halo catalogue data. Halo catalogues come in many formats including AHF (Amiga Halo Finder), Friends of Friends (FoF), Rockstar, and more. These catalogues will contain information regarding the physical positions and merger history of the particles in your simulation. You'll need to use these catalogues to obtain the physical coordinates of whatever object you'd like to project.
 
-* ** Note: If you're working with data from The Three Hundred Project, contact Patrick to get the relevant coords.txt file and/or the script to generate it. **
+* ** Note: If you're working with data from The Three Hundred Project, we've included a script called pymgal/doc/the300_helper.py which helps you get positions from AHF halos. Open it and modify the indicated parameters to fit your needs. **
 
 ## Who do I talk to?
 
