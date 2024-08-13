@@ -1,5 +1,5 @@
 import numpy as np
-from pymgal import utils
+import utils
 
 
 class charlot_fall(object):
