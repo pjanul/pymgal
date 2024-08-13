@@ -6,10 +6,11 @@ from readsnapsgl import readsnap
 import argparse
 import yaml
 import re
-d = dirname(dirname(abspath(__file__)))
-sys.path.append(d)
-import pymgal
-
+from SSP_models import SSP_models
+from filters import filters
+from load_data import load_data
+from projection import projection
+import __version__
 
 
 # Generate n random projection vectors
@@ -57,8 +58,8 @@ def project_to_fits(object_dir, coords, config):
     
 
     # Prepare SSP models, filters, and dust function
-    sspmod = pymgal.SSP_models(config["SSP_model"], IMF=config["IMF"], has_masses=True)  # Prepare SSP models
-    filters = pymgal.filters(f_name=config["filters"]) #eg: 'sloan_r', 'sloan_u', 'sloan_g', 'sloan_i', 'sloan_z', 'wfc3_f225w', 'wfc3_f606w', 'wfc3_f814w'])  # Load the filters
+    sspmod = SSP_models(config["SSP_model"], IMF=config["IMF"], has_masses=True)  # Prepare SSP models
+    filters_list = filters(f_name=config["filters"]) #eg: 'sloan_r', 'sloan_u', 'sloan_g', 'sloan_i', 'sloan_z', 'wfc3_f225w', 'wfc3_f606w', 'wfc3_f814w'])  # Load the filters
     dustf = None if config["dust_func"] is None else getattr(pymgal.dusts, config["dust_func"].lower())()   #Dust function
     print("Dust function being used: ", dustf) 
             
@@ -77,11 +78,11 @@ def project_to_fits(object_dir, coords, config):
     head = readsnap(sim_file_path, 'HEAD')
     
     # Load the data, handle some user input, and calculate energy
-    simd = pymgal.load_data(sim_file_path, snapshot=True, center=cc, radius=rr)
+    simd = load_data(sim_file_path, snapshot=True, center=cc, radius=rr)
     mag_type = config["mag_type"].lower()
     is_vega, is_solar, is_apparent = (mag_type == "vega", mag_type == "solar", mag_type == "apparent")
     z_obs = config["z_obs"] if config["z_obs"] is not None else max(0.05, simd.redshift)
-    mag = filters.calc_energy(sspmod, simd, dust_func=dustf, vega=is_vega, apparent=is_apparent, solar=is_solar, unit=out_val, rest_frame=config["rest_frame"])
+    mag = filters_list.calc_energy(sspmod, simd, dust_func=dustf, vega=is_vega, apparent=is_apparent, solar=is_solar, unit=out_val, rest_frame=config["rest_frame"])
         
 
     # Rotate and project
@@ -89,14 +90,14 @@ def project_to_fits(object_dir, coords, config):
         pj = None #Initialize
         if i==0:
             print("Projecting photons to %s" % proj_direc)
-            pj = pymgal.projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=z_obs, zthick=config["zthick"],
+            pj = projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=z_obs, zthick=config["zthick"],
                                            axis=proj_direc, ksmooth=config["ksmooth"], outmas=config["outmas"], outage=config["outage"], outmet=config["outmet"])
             lsmooth = pj.lsmooth
                      
             # Avoid redundantly recomputing kNN distances by passing the pre-computed array 
         else:
             print("Projecting photons to %s" % proj_direc)
-            pj = pymgal.projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=config["z_obs"], zthick=config["zthick"],
+            pj = projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=config["z_obs"], zthick=config["zthick"],
                                        axis=proj_direc, ksmooth=config["ksmooth"], lsmooth=lsmooth, outmas=config["outmas"], outage=config["outage"], outmet=config["outmet"])
 
 
@@ -142,7 +143,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     cwd = os.getcwd()
-    config_file = os.path.join(cwd, "config.yaml")
+    config_file = os.path.abspath(args.config_file)
+    print("Config: ", config_file)
     config=None  # Initialize
     # Exit if the file doesn't exist or is unreadable. Otherwise load it.
     if not os.path.isfile(config_file) or not os.access(config_file, os.R_OK):
@@ -152,4 +154,3 @@ if __name__ == "__main__":
             config = yaml.safe_load(f)
     config = merge_settings(config, args)
     project_to_fits(config["sim_file"], config["coords"], config)
-
