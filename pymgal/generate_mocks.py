@@ -8,6 +8,7 @@ import yaml
 import re
 from SSP_models import SSP_models
 from filters import filters
+import dusts
 from load_data import load_data
 from projection import projection
 import __version__
@@ -60,7 +61,7 @@ def project_to_fits(object_dir, coords, config):
     # Prepare SSP models, filters, and dust function
     sspmod = SSP_models(config["SSP_model"], IMF=config["IMF"], has_masses=True)  # Prepare SSP models
     filters_list = filters(f_name=config["filters"]) #eg: 'sloan_r', 'sloan_u', 'sloan_g', 'sloan_i', 'sloan_z', 'wfc3_f225w', 'wfc3_f606w', 'wfc3_f814w'])  # Load the filters
-    dustf = None if config["dust_func"] is None else getattr(pymgal.dusts, config["dust_func"].lower())()   #Dust function
+    dustf = None if config["dust_func"] is None else getattr(dusts, config["dust_func"].lower())()   #Dust function
     print("Dust function being used: ", dustf) 
             
     snapname = os.path.basename(sim_file_path).replace('.hdf5', '') if ".hdf5" in os.path.basename(sim_file_path) else os.path.basename(sim_file_path)
