@@ -5,7 +5,7 @@ from astropy.coordinates import SkyCoord
 from astropy.time import Time
 from scipy.spatial import KDTree
 from functools import lru_cache
-from pymgal import __version__
+import __version__
 # scipy must >= 0.17 to properly use this!
 # from scipy.stats import binned_statistic_2d
 
@@ -480,5 +480,4 @@ class projection(object):
             else:
                 raise ValueError("Do not accept this comments type! Please use str or list")
             hdu.writeto(fname[:-5]+"-"+i+fname[-5:], overwrite=overwrite)
-
 
