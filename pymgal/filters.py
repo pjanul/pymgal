@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import astropy.io.fits as pyfits
-from pymgal import utils
+import utils
 from scipy.integrate import simps
 from scipy.interpolate import interp1d
 # from astropy.cosmology import FlatLambdaCDM
