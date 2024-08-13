@@ -1,5 +1,5 @@
 # You should probably overwrite this with the right coordinates from a halo file.
-coords:  [500000, 500000, 500000, 1000]       								# The coordinates [x, y, z, r] of the projection region. (x, y, z) is the centre of the projection region and r is its radius
+coords:  [500000, 500000, 500000, 1000]                                      # The coordinates [x, y, z, r] of the projection region. (x, y, z) is the centre of the projection region and r is its radius
 
 # You can play around with these parameters 
 prefix: "region_001"                                                           # The prefix for your output file, useful to differentiate between regions/objects. If set to null, no prefix will be output
