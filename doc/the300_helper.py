@@ -6,14 +6,7 @@ import os, sys
 import argparse
 import yaml
 import re
-import json
-import multiprocessing
-global d
-d = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(d)
-import pymgal
-from readsnapsgl import readsnap
-from generate_mocks import project_to_fits
+global start_index, end_index, snaps, code, cat_dir, sim_dir, output_dir, config_file_path
 
 ##################################################################################################################################################################################################################
 
@@ -21,7 +14,7 @@ from generate_mocks import project_to_fits
 
 
 # If you're not a member of the 300 project but have AHF catalogue data, you might still be able to modify this script to get the positions of halos and their progenitors
-# Go to the top of the main function and you'll find some parameters including output directory, catalogue directory, simulation directory, etc.
+# Below you'll find some parameters including catalogue directory, simulation directory, etc.
 # Modify these to suit your needs and then run the script at the command line.
 # We assume the following directory structure.
 
@@ -41,12 +34,11 @@ from generate_mocks import project_to_fits
 #            ├── more NewMDCLUSTER_XXXX folders containing .AHF_halos and .AHF_mtree_idx files
 
 
-
-# IMPORTANT NOTE: Take this script and move it into your inner pymgal directory (ie your/path/to/pymgal/pymgal). Then, run "python the300_helper.py". Running in a different directory may cause the script to fail
+# IMPORTANT NOTE: You should move this script inside the inner PyMGal directory and run it from there. It calls "python ./generate_mocks.py", so it needs to be in the same directory as generate_mocks.py.
+# After moving the script to the proper location, enter  "python the300_helper.py <config_filepath> <output_dir>" into the command line.
 
 #################################################################################################### Here are the parameters you should modify #####################################################################################################
 
-global start_index, end_index, snaps, code, cat_dir, sim_dir, output_dir, config_file_path
 # Example input values
 start_index = 300                                                                           # Index of the first cluster you want to project
 end_index = None                                                                            # Index of the last cluster you want to project. If None, only start_index will be projected
@@ -54,9 +46,8 @@ snaps = ["snap_128", "snap_127"]
 code = "GIZMO"                                                                              # What is your simulation code? Can be GadgetX, GIZMO, GIZMO_7k, etc
 cat_dir = "/niftydata/TheThreeHundred/data/catalogues/AHF/GIZMO"                            # The directory to your AHF catalogue data. You'll need a one single center-clusters.txt file and .AHF_halos, .AHF_mtree_idx for each cluster/redshift pair
 sim_dir = "/GIZMO-SIMBA"                                                                    # The directory to your simulation snapshot data
-output_dir = os.path.join("/castor/playground/pjanulewicz/data/maps/CCD", code)             # The directory where you'd like to output your files. Make sure this directory exists and is writeable
-config_file_path = "./config.yaml"                                                          # The path to your config file. You probably don't need to change this if you're running in the inner pymgal directory
-##################################################################################################################################################################################################################################################
+
+#################################################################################################  Below is code you probably don't need to touch ########################################################################################################
 
 
 
@@ -73,12 +64,12 @@ def generate_object_names(start_index, end_index):
 
 
 def get_progenitors(snaps, cluster_name, sim_dir, cat_dir, code, config, output_dir, sim_file_ext):
-    
+
     snapnum_list = [int(snap.replace("snap_", "")) for snap in snaps]
-    
+
     # Load group information
     groupinfo = np.loadtxt(os.path.join(cat_dir, f"{code}_R200c_snaps_128-center-cluster.txt"))
-    
+
     pregen = np.zeros((groupinfo.shape[0], 129), dtype=np.int64) - 1
     pregen[:, 128] = np.int64(groupinfo[:, 1])
 
@@ -87,33 +78,33 @@ def get_progenitors(snaps, cluster_name, sim_dir, cat_dir, code, config, output_
     except:
         raise ValueError("If you're using AHF halos and merger trees to get coordinates, they must end in _X, where X is some sequence of digits (e.g. NewMDCLUSTER_0324)")
 
-    # See how far back your progrenitors need to go
+    # See how far back your progenitors need to go
     earliest_snap_num = min([int(snapname.split('_')[-1]) for snapname in snaps])
 
-    lp = [int(cluster_num) -1]
+    lp = [int(cluster_num) - 1]
 
     # Get progenitors.
     for i in np.arange(128, earliest_snap_num, -1):
-        exts='000'+str(i)
+        exts = '000' + str(i)
+        exts = exts[-3:]  # Ensures it's 3 digits
 
-        head_path = os.path.join(sim_dir, cluster_name, 'snap_' + exts[-3:] + sim_file_ext)
-        head = readsnap(head_path, 'HEAD') 
+        # Construct the path to the merger tree index file directory
+        mtree_dir = os.path.join(cat_dir, cluster_name)
 
-        if head.Redshift<0:
-            head.Redshift = 0.0000
-        mtree_index_file = os.path.join(cat_dir, cluster_name, code + '-' + cluster_name + '.snap_' + exts[-3:] + '.z' + ("{:.3f}".format(head.Redshift, 9))[:5] + '.AHF_mtree_idx')
+        # List all files in the directory and filter for the correct pattern
+        files = os.listdir(mtree_dir)
+        mtree_files = [f for f in files if f.startswith(f'{code}-{cluster_name}.snap_{exts}.z') and f.endswith('.AHF_mtree_idx')]
 
-        if os.path.isfile(mtree_index_file):
-            mtid=np.loadtxt(mtree_index_file)
+        if mtree_files:
+            mtree_index_file = os.path.join(mtree_dir, mtree_files[0])  # Choose the first match if multiple files exist
+            mtid = np.loadtxt(mtree_index_file)
             print("AHF merger tree index file successfully found: ", mtree_index_file)
         else:
-            raise ValueError('Cannot find merger tree index file %s' % mtree_index_file)
+            raise ValueError(f'Cannot find merger tree index file for snap_{exts} in {mtree_dir}')
 
-
-        pregen[lp,i-1]=mtid[mtid[:,0]==pregen[lp,i],1]
+        pregen[lp, i - 1] = mtid[mtid[:, 0] == pregen[lp, i], 1]
 
     return pregen
-
 
 def get_coords(snapname, cluster_name, sim_path, cat_path, Code, pregen, sim_file_ext):
 
@@ -123,14 +114,15 @@ def get_coords(snapname, cluster_name, sim_path, cat_path, Code, pregen, sim_fil
     sn = np.int64(snapname[-3:])
     hid= pregen[lp,sn]
 
-    head_path = os.path.join(sim_path, cluster_name, snapname + sim_file_ext)
-    head = readsnap(head_path, 'HEAD')
-    if head.Redshift<0:
-        head.Redshift = 0.0000
-    halo_file=os.path.join(cat_path, cluster_name, Code + '-'+ cluster_name +'.'+snapname+'.z'+("{:.3f}".format(head.Redshift,9))[:5]+'.AHF_halos')
+    halo_dir = os.path.join(cat_path, cluster_name)
+    files = os.listdir(halo_dir)
+    halo_files = [f for f in files if f.startswith(f'{Code}-{cluster_name}.{snapname}.z') and f.endswith('.AHF_halos')]
 
-    if os.path.isfile(halo_file):
-        halo=np.loadtxt(halo_file)
+
+
+    if halo_files:
+        halo_file = os.path.join(halo_dir, halo_files[0])  # Choose the first match if multiple files exist
+        halo = np.loadtxt(halo_file)
         print("AHF halo file successfully found: ", halo_file)
     else:
         raise ValueError('Cannot find halo file  %s' % halo_file)
@@ -142,17 +134,12 @@ def get_coords(snapname, cluster_name, sim_path, cat_path, Code, pregen, sim_fil
     for j in shid:
         cc=halo[j,5:8]; rr = halo[j,11]
         coords = list(np.append(cc, rr))
-        #print("[x, y, z, r]: ", coords)
 
     return coords
 
 
 
 def process_snaps(snaps, cluster_name, sim_dir, cat_dir, code, config, output_dir, config_file_path):
-
-    sspmod = pymgal.SSP_models(config["SSP_model"], IMF=config["IMF"], has_masses=True)  # Prepare SSP models
-    filters = pymgal.filters(f_name=config["filters"]) #eg: 'sdss_r', 'sdss_u', 'sdss_g', 'sdss_i', 'sdss_z', 'wfc3_f225w', 'wfc3_f606w', 'wfc3_f814w'])  # Load the filters
-    dustf = None if config["dust_func"] is None else getattr(pymgal.dusts, config["dust_func"].lower())()   #Dust function
 
     sim_file_ext = '' if "gadget" in code.lower() else '.hdf5'
 
@@ -171,16 +158,27 @@ def process_snaps(snaps, cluster_name, sim_dir, cat_dir, code, config, output_di
 
 
 def main():
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Generate projections from the 300 project simulation of galaxy clusters.")
+    parser.add_argument('config_dir', type=str, help="Path to the config file")
+    parser.add_argument('output_dir', type=str, help="Path to the output directory")
+
+    args = parser.parse_args()
+
+    config_file_path = args.config_dir
+    output_dir = args.output_dir
+
+    # Ensure the output directory exists
     if not os.path.isdir(output_dir):
-        raise ValueError("You must set your output_dir to a directory that already exists")
+        raise ValueError("The output directory does not exist")
 
     # Read the YAML config file
     with open(config_file_path, 'r') as file:
         config = yaml.safe_load(file)
-    
+
     # Generate object names
     object_names = generate_object_names(start_index, end_index)
-    
+
     # Iterate through each object name and process the snaps
     for cluster_name in object_names:
         process_snaps(snaps, cluster_name, sim_dir, cat_dir, code, config, output_dir, config_file_path)
