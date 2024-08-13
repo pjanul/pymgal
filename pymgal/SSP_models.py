@@ -1,5 +1,5 @@
 import os
-from pymgal import utils
+import utils
 import re
 from scipy.interpolate import interp1d
 # import weight
