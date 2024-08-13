@@ -1,4 +1,4 @@
-from pymgal.readsnapsgl import readsnap
+from readsnapsgl import readsnap
 import numpy as np
 from astropy.cosmology import FlatLambdaCDM
 # from scipy.interpolate import griddata
