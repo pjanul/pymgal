@@ -11,14 +11,14 @@
 
 #### Dependencies 
 
-* To install the necessary dependencies, simply enter the outer pymgal directory and run the following at the command line.
+* To install the necessary dependencies, simply enter your/path/to/pymgal (i.e. the outer PyMGal directory) and run the following at the command line.
 
     * `pip install -r requirements.txt`
 
 
 #### The config.yaml file
 
-* The config.yaml file contains modifiable parameters including filters, SSP models, and many more. Open it and take a look. You can play around with these parameters, but the default values should be enough to get you started. The file can be found at your/path/to/pymgal/pymgal/config.yaml (i.e. the inner PyMGal directory). 
+* The config.yaml file contains modifiable parameters including the coordinates of your projection region, filters, SSP models, and many more. Open it and take a look. You can play around with these parameters, but as long as you have valid coordinates, the other default values should be enough to get you started. The file can be found at your/path/to/pymgal/pymgal/config.yaml (i.e. the inner PyMGal directory). 
 
 * The full list of filters and SSP models can be found in the pymgal/filters and pymgal/models directories, respectively. 
 
@@ -38,8 +38,8 @@
 
 #### Input:
 
-* The snapshot simulation file. Can be any flavour or Gadget or GIZMO. Can be formatted snap_XYZ or snap_XYZ.hdf5.
-* A list [x, y, z, r] where (x, y, z) is the centre of the projection region and r is its radius, both in physical. 
+* The path to your snapshot simulation file. Can be any flavour or Gadget or GIZMO. Can be formatted snap_XYZ or snap_XYZ.hdf5. 
+* The path to your config.yaml file. You can use the built-in config.yaml file, or you can specify a different path and use that one. 
 * The directory where you'd like to output your files.
 
 #### Output:
@@ -47,9 +47,9 @@
 
 ## What if I don't know the coordinates for my projections?
 
-* In this case, you'll probably need halo catalogue data. Halo catalogues come in many formats including AHF (Amiga Halo Finder), Friends of Friends (FoF), Rockstar, and more. These catalogues will contain information regarding the physical positions and merger history of the particles in your simulation. You'll need to use these catalogues to obtain the physical coordinates of whatever object you'd like to project.
+* In this case, you'll probably need halo catalogue data. Halo catalogues come in many formats including AHF (Amiga Halo Finder), FoF (Friends of Friends), Rockstar, and more. These catalogues will contain information regarding the physical positions and merger history of the particles in your simulation. You'll need to use these catalogues to obtain the physical coordinates of whatever object you'd like to project.
 
-* ** Note: If you're working with data from The Three Hundred Project, we've included a script called pymgal/doc/the300_helper.py which helps you get positions from AHF halos. Open it and modify the indicated parameters to fit your needs. **
+* ** Note: If you're working with data from The Three Hundred Project, we've included a script called pymgal/doc/the300_helper.py which helps you get positions from AHF halos. Open it and read the comments at the top for instructions. **
 
 ## Who do I talk to?
 
