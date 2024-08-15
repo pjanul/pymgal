@@ -63,7 +63,7 @@ def setup_package():
         packages=find_namespace_packages(),
         version=VERSION,
         author='Weiguang Cui, Patrick Janulewicz',
-        author_email='cuiweiguang@gmail.com, patrick.janulewicz@gmail.com',
+        author_email='cuiweiguang@gmail.com, patrick.janulewicz@mail.mcgill.ca',
         description="A Package for Mock Observations in optical bands",
         long_description=read('README.md'),
         #packages=find_namespace_packages(),
@@ -78,7 +78,7 @@ def setup_package():
                  'filters/*',
                  'refs/*']},
         license="BSD",
-        keywords='astronomy astrophysics hydro-dynamical simulation mock observation',
+        keywords='astronomy astrophysics hydrodynamical simulation mock observation',
         classifiers=[
             "Development Status :: 5 - Production/Stable",
             "Intended Audience :: Science/Research",
