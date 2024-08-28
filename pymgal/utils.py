@@ -526,7 +526,6 @@ def numba_interp1d(x, y):
 
 @njit(parallel=True)
 def handle_seds(seds, interp_data, S_mass, ids):
-    print(seds.shape[0], seds.shape[1])
     for i in prange(seds.shape[0]):
         tmpd = interp_data[i] * S_mass[i]
         seds[i, ids] = tmpd
