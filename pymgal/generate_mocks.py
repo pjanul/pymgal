@@ -171,5 +171,4 @@ if __name__ == "__main__":
             config = yaml.safe_load(f)
     config = merge_settings(config, args)
     numba.set_num_threads(config["ncpu"])
-    print(config["ncpu"])
     project_to_fits(config["sim_file"], config["coords"], config)
