@@ -12,7 +12,10 @@ import dusts
 from load_data import load_data
 from projection import projection
 import __version__
-
+import utils
+import numba
+#import time
+from multiprocessing import Pool
 
 # Generate n random projection vectors
 def random_projections(n_samples):
@@ -41,18 +44,43 @@ def merge_settings(config, args):
 
 def handle_input(config):
     # Handle some invalid inputs that aren't handled elsewhere
-    if config["out_val"].lower() not in {"flux", "magnitude", "luminosity"}:
-        raise ValueError(f"Invalid out_val: {config['out_val']} Expected 'flux', 'magnitude', or 'luminosity'.") 
+    if config["out_val"].lower() not in {"flux", "magnitude", "luminosity", "jy", "fv", "fl"}:
+        raise ValueError(f"Invalid out_val: {config['out_val']} Expected 'flux', 'magnitude', 'luminosity', 'jy', 'fv', or 'fl'.") 
 
-    if (config["mag_type"].lower() not in {"vega", "solar", "apparent", "ab"}) and (config["out_val"]  == "magnitude"):
-        raise ValueError(f"Invalid mag_type: {config['mag_type']}. Expected 'vega', 'solar', 'apparent', or 'AB'.")
+    if (config["mag_type"].lower() not in {"ab", "vega", "solar", "ab_apparent", "vega_apparent", "solar_apparent"}) and (config["out_val"]  == "magnitude"):
+        raise ValueError(f"Invalid mag_type: {config['mag_type']}. Expected 'AB', 'vega', 'solar', 'AB_apparent', 'vega_apparent', or 'solar_apparent'.")
 
 
+def project_and_save(args):
+    proj_direc, mag, simd, config, out_val, z_obs, lsmooth, snapname = args
+
+    #start_time = time.time()
+    print(f"Projecting photons to {proj_direc}")
+    
+    pj = projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=z_obs, zthick=config["zthick"],
+                    axis=proj_direc, ksmooth=config["ksmooth"], lsmooth=lsmooth, outmas=config["outmas"],
+                    outage=config["outage"], outmet=config["outmet"])
+    
+    #end_time = time.time()
+    #print("Projection time: ", end_time - start_time)
+    
+    # If the projection direction has type np.ndarray, change the format; otherwise DS9 can't open it
+    if isinstance(proj_direc, np.ndarray):
+        proj_direc = f"({';'.join(map(str, proj_direc))})"
+    if isinstance(proj_direc, list):
+        proj_direc = f"({'°,'.join(map(str, proj_direc))}°)"
+    
+    prefix = config.get("prefix", "")
+    prefix = f"{prefix}-" if prefix else ""
+    output_path = os.path.join(config["output_dir"], f"{prefix}{snapname}-{proj_direc}.fits")
+    
+    pj.write_fits_image(output_path, overwrite=True)
 
 # The function which handles the data and creates the projections
 def project_to_fits(object_dir, coords, config):
     handle_input(config)
    
+    
     # Initialize some variables
     out_val = config["out_val"].lower()  
     sim_file_path = config["sim_file"]
@@ -70,10 +98,15 @@ def project_to_fits(object_dir, coords, config):
     chosen_proj_vecs=[]
     if config["proj_vecs"] is not None:
         chosen_proj_vecs = [np.array(elem) if isinstance(elem, list) else elem for elem in config["proj_vecs"]]
-    
+  
+    chosen_proj_angles = [] if config["proj_vecs"] is None else config["proj_vecs"] # Handle None input   
+ 
     # Set up projection angles
     random_proj_vecs = random_projections(config["num_random_proj"])# random_proj_dict.get(snapname)
-    projections = chosen_proj_vecs + random_proj_vecs + config["proj_angles"]
+    projections = chosen_proj_vecs + random_proj_vecs + chosen_proj_angles
+    if len(projections) == 0:
+        raise ValueError(f"Please select one of 'num_random_proj', 'proj_vecs', or 'proj_angles' to be non-empty.")
+   
     cc, rr = coords[:3], coords[-1]
     
     head = readsnap(sim_file_path, 'HEAD')
@@ -81,38 +114,23 @@ def project_to_fits(object_dir, coords, config):
     # Load the data, handle some user input, and calculate energy
     simd = load_data(sim_file_path, snapshot=True, center=cc, radius=rr)
     mag_type = config["mag_type"].lower()
-    is_vega, is_solar, is_apparent = (mag_type == "vega", mag_type == "solar", mag_type == "apparent")
+    is_vega, is_solar, is_apparent = mag_type.startswith('vega'), mag_type.startswith('solar'), 'apparent' in mag_type   
     z_obs = config["z_obs"] if config["z_obs"] is not None else max(0.05, simd.redshift)
-    mag = filters_list.calc_energy(sspmod, simd, dust_func=dustf, vega=is_vega, apparent=is_apparent, solar=is_solar, unit=out_val, rest_frame=config["rest_frame"])
-        
+    mag = filters_list.calc_energy(sspmod, simd, dust_func=dustf, vega=is_vega, apparent=is_apparent, solar=is_solar, unit=out_val, rest_frame=config["rest_frame"], redshift=z_obs)
 
-    # Rotate and project
-    for i, proj_direc in enumerate(projections):
-        pj = None #Initialize
-        if i==0:
-            print("Projecting photons to %s" % proj_direc)
-            pj = projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=z_obs, zthick=config["zthick"],
-                                           axis=proj_direc, ksmooth=config["ksmooth"], outmas=config["outmas"], outage=config["outage"], outmet=config["outmet"])
-            lsmooth = pj.lsmooth
-                     
-            # Avoid redundantly recomputing kNN distances by passing the pre-computed array 
-        else:
-            print("Projecting photons to %s" % proj_direc)
-            pj = projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=config["z_obs"], zthick=config["zthick"],
-                                       axis=proj_direc, ksmooth=config["ksmooth"], lsmooth=lsmooth, outmas=config["outmas"], outage=config["outage"], outmet=config["outmet"])
+    pos = np.copy(simd.S_pos) / simd.cosmology.h / (1.+ simd.redshift)  # to assumed physical 
+    pos -= simd.center / simd.cosmology.h / (1.+ simd.redshift)
+    print("Computing kNN distances")
+    if config["ksmooth"] > 0:
+        lsmooth = utils.knn_distance(pos, config["ksmooth"])
+    else: 
+        lsmooth = None
 
-
-        # If the projection direction has type np.ndarray, change the format; otherwise DS9 can't open it
-        if (isinstance(proj_direc, np.ndarray)):
-            proj_direc = f"({';'.join(map(str, proj_direc))})"
-        if (isinstance(proj_direc, list)):
-            proj_direc = f"({'°,'.join(map(str, proj_direc))}°)"
-
-        prefix = config["prefix"]
-        prefix = prefix + "-" if prefix not in {None, ''}  else ""
-        pj.write_fits_image(os.path.join(config["output_dir"], f"{prefix}{snapname}-{proj_direc}.fits"), overwrite=True)
-
-
+    # Parallelize the projection and saving process
+    args = [(proj_direc, mag, simd, config, out_val, z_obs, lsmooth, snapname) for proj_direc in projections]
+    
+    with Pool(processes=config["ncpu"]) as pool:   
+        pool.map(project_and_save, args)
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -143,9 +161,7 @@ if __name__ == "__main__":
     parser.add_argument('--outmet', type=lambda x: (x.lower() == 'true'), help="Output the metallicity map corresponding to your data")
     args = parser.parse_args()
 
-    cwd = os.getcwd()
     config_file = os.path.abspath(args.config_file)
-    print("Config: ", config_file)
     config=None  # Initialize
     # Exit if the file doesn't exist or is unreadable. Otherwise load it.
     if not os.path.isfile(config_file) or not os.access(config_file, os.R_OK):
@@ -154,4 +170,6 @@ if __name__ == "__main__":
         with open(config_file, 'r') as f:
             config = yaml.safe_load(f)
     config = merge_settings(config, args)
+    numba.set_num_threads(config["ncpu"])
+    print(config["ncpu"])
     project_to_fits(config["sim_file"], config["coords"], config)
