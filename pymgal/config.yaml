@@ -18,6 +18,7 @@ ksmooth: 30                                                                 # A 
 z_obs: 0.10                                                                 # The distance of the observation from the observer's POV. This DOES NOT affect age/evolution, only the apparent distance. If null, it defaults to max(0.05, sim z) 
 npx: 256                                                                    # The number of pixels in the output image. Can also be set to "auto" which will automatically decide the pixel number to include all particles
 zthick: null                                                                 # The thickness cut ([center-zthick, center+zthick]) in the projection direction in kpc/h. If null, all the data is used (ie no cut is applied)
+ncpu: 16                                                                     # The number of CPUs used in parallel processes
 outmas: False                                                                # Output the mass map corresponding to your data
 outage: False                                                                # Output the age map corresponding to your data
 outmet: False                                                                # Output the metallicity map corresponding to your data                                         
