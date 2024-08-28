@@ -7,8 +7,8 @@ filters: ["sdss_r"]                                                         # Th
 num_random_proj: 0                                                          # The number of random projections you want. Can be 0. NOTE: setting num_random_proj = 0, proj_vecs = null, and proj_angles = null will cause an error.
 proj_vecs: ["x", [0.577, 0.577, 0.577]]                                                              # A list projection vectors. Can be "x", "y", "z" (principal axes), and/or a custom [x, y, z] in cartesian. Can be null.
 proj_angles: [[30,0,0]]                                                    # A list of angles [alpha, beta, gamma] (degrees) used to rotate around the x, y, z axes respectively. Does the same task as proj_vecs, so you can use either/both. Can be null.
-out_val: "luminosity"                                                       # Whether you want the output values to be "flux", "magnitude", or "luminosity"
-mag_type: "AB"                                                              # If out_val = "magnitude", choose "AB", "vega", "solar", or "apparent" magnitude. If out_val != "magnitude", this does nothing.
+out_val: "flux"                                                             # The output units. Can be "flux" (erg/s/cm^2), "jy" (jansky), "Fv" (erg/s/cm^2/Hz), "Fl" (erg/s/cm^2/angstrom), or "magnitude". Case insensitive
+mag_type: "AB"                                                              # If outval is "magnitude", specify between "AB", "vega", "solar", "AB_apparent", "vega_apparent", or "solar_apparent". If out_val != "magnitude", this does nothing.
 rest_frame: True                                                           # If True, results are in rest frame. Otherwise, they are in observer's frame.
 AR: 1.2                                                                     # Angular resolution (arcsec). If null, it is automatically calculated. If AR is null and npx is "auto", npx defaults to 512
 SSP_model: "bc03_ssp"                                                       # The simple stellar population (SSP) model you want to use. Full list can be found at pymgal//models
