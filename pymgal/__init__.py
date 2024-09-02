@@ -12,11 +12,11 @@ from pymgal.filters import filters
 from pymgal import utils
 from pymgal.projection import projection
 from pymgal import dusts
-from pymgal import version
+from pymgal import __version__
 
-__author__ = 'Weiguang Cui'
-__email__ = 'cuiweiguang@gmail.com'
-__verion__ = version.version
+__author__ = ['Weiguang Cui', 'Patrick Janulewicz']
+__email__ = ['cuiweiguang@gmail.com', 'patrick.janulewicz@gmail.com']
+__version__ = __version__.__version__
 __all__ = ["pymgal"]
 # ezsps = ezsps.ezsps
 # model = ezsps

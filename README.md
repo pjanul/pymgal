@@ -1,76 +1,62 @@
 # README
 
-This README documents whatever steps are necessary to get your application up and running.
 
-### What is this repository for?
+## What is this repository for?
 
--   This package uses simple stellar synethesis models to generate observed galaxies from hydro-dynamical simulations.
--   Version beta
+* PyMGal (pronounced py-em-gal) is a package that uses simple stellar synthesis models to generate observed galaxies from hydrodynamical simulations.
 
-### How do I get set up?
+## How do I get set up?
 
-Begin by downloading/cloning pymgal onto your own device and placing it in your directory of choice. After downloading, you will need to install the necessary dependencies and configure your database before you can run the code.
+* Begin by downloading/cloning PyMGal onto your own device and placing it in your directory of choice. After downloading, you will need to install the necessary dependencies before you can run the code.
 
-##### Dependencies 
+#### Dependencies 
 
-To install the necessary dependencies, simply enter the outer pymgal directory and run the following at the command line.
+* To install the necessary dependencies, simply enter your/path/to/pymgal (i.e. the outer PyMGal directory) and run the following at the command line.
 
-`pip install -r requirements.txt`
+    * `pip install -r requirements.txt`
 
 
-##### Database configuration
+#### The config.yaml file
 
-The database must contain both the simulation data and the catalogue data. Below is an example database. This example uses the GadgetX code, but you can also use other simulation code such as GadgetMUSIC or GIZMO. 
-For a given cluster at a given redshift, you'll need the corresponding (1) .AHF_halos file, (2) .AHF_mtree file, (3) .AHF_mtree_idx file, and (4) snap_XYZ snapshot file. 
-You'll also need (5) a single center-cluster.txt file for your chosen simulation code. 
+* The config.yaml file contains modifiable parameters including the coordinates of your projection region, filters, SSP models, and many more. Open it and take a look. You can play around with these parameters, but as long as you have valid coordinates, the other default values should be enough to get you started. The file can be found at your/path/to/pymgal/pymgal/config.yaml (i.e. the inner PyMGal directory). 
 
-<br />
-```bash
-├── data
-    ├── catalogues
-        ├── AHF
-             ├── GadgetX 
-                ├── GadgetX_R200c_snaps_128-center-cluster.txt
-                ├── NewMDCLUSTER_0001
-                     ├── GadgetX-NewMDCLUSTER_0001_snap_128.z0.000.AHF_halos
-                     ├── GadgetX-NewMDCLUSTER_0001.snap_128.z0.000.AHF_mtree 
-                     ├── GadgetX-NewMDCLUSTER_0001.snap_128.z0.000.AHF_mtree_idx
-                     ├── More AHF_halos, AHF_mtree, and AHF_mtree_idx files...
-                ├── More NewMDCLUSTER_ directories...
-    ├── simulations
-        ├── GadgetX
-            ├── NewMDCLUSTER_0001
-                ├── snap_128
-                ├── more snap_ files 
-            ├── More NewMDCLUSTER_ directories...
-```  
-
-##### Running pymgal
-
-Once you've downloaded pymgal, installed all the necessary dependencies, and configured your database, you can begin generating mock observations. 
-To do so, first enter your/path/to/pymgal/pymgal (i.e. the inner pymgal directory). From there, run the following at command line.
-<br>
-
-**`python generate_mocks.py <output directory>`**
+* The full list of filters and SSP models can be found in the pymgal/filters and pymgal/models directories, respectively. 
 
 
-If you do this, it will read the default config.yaml file which contains relevant parameters including angles, snap numbers, etc. 
-You can modify the config.yaml file to fit your needs, or you can pass optional command line arguments to temporarily overrule the config file. You can even pass your own config file path as an argument and use that one instead. 
-To get more information about the config file, you can read the comments inside config.yaml. To get more information about command line arguments, you can run the following. <br>
+## How do I run the code?
 
-**`python generate_mocks.py --help`**
+* Once everything is set up, you can begin generating mock observations. To do so, enter the inner PyMGal directory /your/path/to/pymgal/pymgal and run the following at command line.
 
-### Contribution guidelines
+    *  **`python generate_mocks.py <snapshot_file> <config_file> <output_dir>`**
 
--   Writing tests
--   Code review
--   Other guidelines
 
-### Who do I talk to?
 
--   Please report any issue to Weiguang Cui cuiweiguang@gmail.com.
--   Or report a bug through issues.
+* You can also pass optional command line arguments to temporarily overrule the config file. To get more information about command line arguments, you can run the following. <br>
 
-### Acknowledgement
+    * **`python generate_mocks.py --help`**
+    
 
--   This package borrowed a lot things from ezgal (<http://www.baryons.org/ezgal/>). Please make your acknowledgement to their work when you use this package.
+#### Input:
+
+* The path to your snapshot simulation file. Can be any flavour or Gadget or GIZMO. Can be formatted snap_XYZ or snap_XYZ.hdf5. 
+* The path to your config.yaml file. You can use the built-in config.yaml file, or you can specify a different path and use that one. 
+* The directory where you'd like to output your files.
+
+#### Output:
+* One FITS file for each selected projection angle and filter. File names will be formatted snap_{XYZ}-{proj_angle}-{filter}.fits. If you specify a prefix in the config file, they will be formatted {prefix}-snap_{XYZ}-{proj_angle}-{filter}.fits.
+
+## What if I don't know the coordinates for my projections?
+
+* In this case, you'll probably need halo catalogue data. Halo catalogues come in many formats including AHF (Amiga Halo Finder), FoF (Friends of Friends), Rockstar, and more. These catalogues will contain information regarding the physical positions and merger history of the particles in your simulation. You'll need to use these catalogues to obtain the physical coordinates of whatever object you'd like to project.
+
+* ** Note: If you're working with data from The Three Hundred Project, we've included a script called pymgal/doc/the300_helper.py which helps you get positions from AHF halos. Open it and read the comments at the top for instructions. **
+
+## Who do I talk to?
+
+*   Please report any issue to Weiguang Cui (cuiweiguang@gmail.com) or Patrick Janulewicz (patrick.janulewicz@mail.mcgill.ca).
+*   Or report a bug through issues.
+
+## Acknowledgement
+
+*  This package borrowed a lot things from ezgal (<http://www.baryons.org/ezgal/>). Please make your acknowledgement to their work when you use this package.
+

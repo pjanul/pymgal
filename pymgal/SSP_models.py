@@ -1,5 +1,5 @@
 import os
-from pymgal import utils
+import utils
 import re
 from scipy.interpolate import interp1d
 # import weight
@@ -7,24 +7,8 @@ from scipy.interpolate import interp1d
 # import astro_filter_light
 import numpy as np
 import astropy.io.fits as pyfits
-# from multiprocessing import Process, cpu_count, Queue, freeze_support
-import threading
 from scipy.integrate import simps
-
-# worker for multiprocessing
-# def worker(input, output):
-#     for func, args in iter(input.get, 'STOP'):
-#         result = calculate(func, args)
-#         output.put(result)
-#
-#
-# def calculate(func, args):
-#     return func(*args)
-#
-#
-# def fi(n1, n2, ages, seds, sage, smas):
-#     f = interp1d(ages, seds, bounds_error=False, fill_value="extrapolate")
-#     return n1, n2, f(sage) * smas
+#import time
 
 
 class SSP_models(object):
@@ -89,12 +73,12 @@ class SSP_models(object):
     -------
     mm=pymgal.SSP_models("bc03_ssp", metal=[0.008])
     """
+
     tol = 1e-8  # tolerance for determining whether a given zf/z matches a stored zf/z
 
     def __init__(self, model_file='', IMF="chab", metal=[], is_ised=False,
                  is_fits=False, is_ascii=False, has_masses=False, units='a',
                  age_units='gyrs', nsample=None):
-
         self.nmets = len(metal)
         if self.nmets == 0:
             self.metals = np.array([])
@@ -143,10 +127,9 @@ class SSP_models(object):
         self._load(model_file, IMF, is_ised=is_ised, is_fits=is_fits,
                    is_ascii=is_ascii, has_masses=has_masses, units=units,
                    age_units=age_units)
-
+    
     def _load(self, model_file, IMF, is_ised=False, is_fits=False,
               is_ascii=False, has_masses=False, units='a', age_units='gyrs'):
-
         # find the model file
         self._find_model_file(model_file, IMF)
 
@@ -196,7 +179,6 @@ class SSP_models(object):
             for metmodel in self.met_name:
                 # because the fist mass is zero...
                 self.seds[metmodel][:, 1:] /= self.masses[metmodel][1:]
-
         # always include a t=0 SED to avoid out of age interpolation errors later
         # a t=0 SED is also assumed during CSP generation
         # if self.nages and self.ages.min() > 0:
@@ -247,7 +229,7 @@ class SSP_models(object):
         Load a bruzual and charlot binary ised file.
         Saves the model information in the model object
         """
-
+        #start_time = time.time()
         for i in range(self.nmets):
             (seds, ages, vs) = utils.read_ised(file[i])
             # store ages
@@ -260,7 +242,8 @@ class SSP_models(object):
             self.nls.append(vs.size)
             # store seds
             self.seds[self.met_name[i]] = seds
-
+        #end_time = time.time()
+        #print("_load_ised time", end_time - start_time)
     def _load_model(self, model_file):
         """
         ezsps._load_model(model_file)
@@ -268,7 +251,6 @@ class SSP_models(object):
         loads a model from a fits file created with ezsps.save_model()
         Saves the model information in the model object
         """
-
         for i in range(self.nmets):
             fits = pyfits.open(model_file[i])
             # was sed information included in this model file?
@@ -320,7 +302,6 @@ class SSP_models(object):
         You can also set the units as anything else found in ezsps.utils.to_meters()
         as long as the flux has units of ergs/s/(wavelength units)
         """
-
         for i in range(self.nmets):
             model = utils.rascii(file[i])
 
@@ -366,32 +347,19 @@ class SSP_models(object):
             # self.vs = self.vs[sind]
             # self.seds = self.seds[sind, :]
 
-    def get_seds(self, simdata, Ncpu=2, rest_frame=False, dust_func=None, units='Fv'):
+    def get_seds(self, simdata, rest_frame=False, dust_func=None):
         r"""
-        Seds = SSP_model(simdata, Ncpu=2, dust_func=None, units='Fv')
+        Seds = SSP_model(simdata, dust_func=None, units='Fv')
 
         Parameters
         ----------
-        simudata   : Simulation data read from load_data
-        Ncpu       : The number of CPUs for parallel interpolation, default, 1
+        simdata   : Simulation data read from load_data
         dust_func  : dust function.
-        units      : The units for retruned SEDS. Default: 'Fv'
         rest_frame : Do you want the SED in rest_frame? default: False.
         Get SEDS for the simulated star particles
 
-        Available output units are (case insensitive):
-
-        ========== ====================
-        Name       Units
-        ========== ====================
-        Jy         Jansky
-        Fv         ergs/s/cm^2/Hz
-        Fl         ergs/s/cm^2/Angstrom
-        Flux       ergs/s/cm^2
-        Luminosity ergs/s
-        ========== ====================
         """
-
+   
         seds = np.zeros((self.nvs[0], simdata.S_age.size), dtype=np.float64)
 
         # We do not do 2D interpolation since there is only several metallicity
@@ -400,172 +368,62 @@ class SSP_models(object):
             mids = np.interp(simdata.S_metal, self.metals, np.arange(self.nmets))
             mids = np.int32(np.round(mids))
 
-        # threading parallel function
-        lock = threading.Lock()
-
-        def worker(met, idn, Ni, Ne):
-            f = interp1d(self.ages[met], self.seds[met], bounds_error=False, fill_value="extrapolate")
-            tmpd = f(simdata.S_age[idn[Ni:Ne]]) * simdata.S_mass[idn[Ni:Ne]]
-            lock.acquire()
-            try:
-                seds[:, idn[Ni:Ne]] = tmpd
-            finally:
-                lock.release()
-
         for i, metmodel in enumerate(self.met_name):
             print('Interpolating: ', metmodel)
-
+            #start_time = time.time()
             if self.nmets > 1:
                 ids = np.where(mids == i)[0]
             else:
                 ids = np.ones(simdata.S_metal.size, dtype=np.bool)
 
-            # threading parallel
-            if ids.size > Ncpu:
-                Ns = np.int32(ids.size / Ncpu)
+            if ids.size > 1:
+                Ns = np.int32(ids.size)
             else:
                 print("# WARNING: More CPUs than particles!!")
                 Ns = 1  # more cpu than particles
             Lst = np.arange(0, ids.size, Ns)
             Lst = np.append(Lst, ids.size)
-            threads = []
-            for j in range(Lst.size-1):
-                t = threading.Thread(target=worker, args=(metmodel, ids, Lst[j], Lst[j+1]))
-                threads.append(t)
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
 
+            ages_array = np.asarray(self.ages[metmodel], dtype='<f8')
+            seds_array = np.asarray(self.seds[metmodel], dtype='<f8')
+            sim_ages_array = np.asarray(simdata.S_age, dtype='<f8')
+            sim_masses_array = np.asarray(simdata.S_mass, dtype='<f8')
+
+            #start_time = time.time()
+            #f = utils.custom_interp1d(ages_array, seds_array)
+            #start_time = time.time() 
+            #tmpd = f(simdata.S_age[ids]) * simdata.S_mass[ids]
+            
+            #tmpd = tmpd.astype(np.float32)
+            #end_time = time.time() 
+            #print("tmpd time: ", end_time - start_time)
+            #start_time = time.time()
+            tmpd = utils.numba_interp1d(ages_array, seds_array)(sim_ages_array[ids])
+            utils.handle_seds(seds, tmpd, sim_masses_array[ids], ids)  # A function that multiplies tmpd by sim masses and then updates "seds" to the right values
+            #end_time = time.time()
+            #print("Mult time: ", end_time - start_time)
+            #f = interp1d(self.ages[metmodel], self.seds[metmodel], bounds_error=False, fill_value="extrapolate")
+            #utils.assign_seds(seds, ids, tmpd) # Use the numba accelerated function from utils - otherwise it takes much longer
+          
+            #end_time = time.time()
+           # print("Time: ", end_time - start_time)
             if dust_func is not None:
                 seds[:, ids] *= dust_func(simdata.S_age[ids], self.ls[metmodel])
 
-        units = units.lower()
-        if (rest_frame) or (simdata.redshift <= 0.):
-            vs = np.copy(self.vs[self.met_name[0]])
-            if units == 'jy':
-                return vs, seds / 1e-23
-            if units == 'fv':
-                return vs, seds
-            if units == 'fl':
-                return vs, seds * (self.vs[self.met_name[0]].reshape(self.nvs[0], 1))**2.0 / utils.convert_length(utils.c, outgoing='a')
 
-            seds *= self.vs[self.met_name[0]].reshape(self.nvs[0], 1)
-            if units == 'flux':
-                return vs, seds
-            if units == 'luminosity':
-                return vs, seds * 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
-            raise NameError('Units of %s are unrecognized!' % units)
-        else:  # sed in observer's frame
-            vs = np.copy(self.vs[self.met_name[0]])
-            if units == 'jy':
-                seds = (seds / 1e-23) * (1 + simdata.redshift)
-                vs /= (1.0 + simdata.redshift)
-            if units == 'fv':
-                seds =  seds * (1 + simdata.redshift)
-                vs /= (1.0 + simdata.redshift)
-            if units == 'fl':  # reverse if units are Fl so that frequencies are increasing in wavelength
-                vs = utils.to_lambda(vs[::-1], units='a')
-                vs = vs * (1.0 + simdata.redshift)
-                seds = seds * (vs.reshape(self.nvs[0], 1))**2.0 / utils.convert_length(utils.c, outgoing='a')
-                sed = sed[::-1] / (1 + simdata.redshift)
-            if units == 'flux':
-                vs = vs * (1.0 + simdata.redshift)
-                seds *= vs.reshape(self.nvs[0], 1)
-
-            if units == 'luminosity':  # bolometric luminosity
-                vs = vs * (1.0 + simdata.redshift)
-                return vs, seds * vs.reshape(self.nvs[0], 1) * 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
-            else:
-                return vs, seds * 10.0**(-0.4 * 5.* np.log10(simdata.cosmology.luminosity_distance(simdata.redshift).to('pc').value/10.))
-            raise NameError('Units of %s are unrecognized!' % units)
+        vs = np.copy(self.vs[self.met_name[0]])
+        # Shift SEDs and frequencies if you're in the rest frame
+        if not rest_frame:
+            non_neg_z = max(0, simdata.redshift)  # Make sure you don't get a negative redshift in case of weird snapshot anomalies
+            vs /= (1 + non_neg_z)
+            seds *= (1 + non_neg_z)
 
 
-def calc_bol_energy(sspmod, simd, Ncpu=1, dust_func=None, unit='flux',
-                apparent=False, vega=False, solar=False, rest_frame=True):
-    r"""
-    mag = pymgal.calc_energy(self, sspmod, simd, fn=None, Ncpu=1, dust_func=None, unit='flux',
-                             apparent=False, vega=False, solar=False, rest_frame=False):
-
-    sspmod      : loaded ssp models.
-    simd        : loaded simulation data from load_data
-    fn          : the name of filter/s. string, list of strings, or None
-                    By default (None), all loaded filters will be included in the calculation
-    Ncpu        : The number of CPUs for parallel interpolation, default = 1
-    dust_func   : The function for dust attenuetion.
-    unit        : the returned value in the filter bands, default : Flux.
-                    It can be 'luminosity' or 'magnitude'
-    apparent    : If you need apparent magnitude, set True. Default False
-    vega        : return AB magnitude in VEGA.
-    solar       : return AB magnitude in solar.
-    rest_frame  : Do you want the resutls in rest_frame? default: False, in observer's frame.
-                    We always assume the observer is at z = 0. If true, we force everything in rest_frame.
-    returns     : 0. Flux, default
-                  1. luminosity
-                  2. magnitude (AB), can be apparent if apparent=True, in vega mags if vega=True or in solar mags in solar=True
-
-    Example:
-        mag = pymgal.calc_mag(ssp, simd, z, fn=None)
-
-    Notes:
-    Calculate the Flux, Luminosity or magnitude of the given sed.
-    """
-
-
-    if apparent:
-        app = 5. * np.log10(simd.cosmology.luminosity_distance(simd.redshift).value
-                            * 1.0e5) if simd.redshift > 0 else -np.inf
-    else:
-        app = 0.0
-
-    if unit.lower() == 'magnitude':
-        unt = 'luminosity'
-    else:
-        unt = unit.lower()
-
-    vs = sspmod.vs[sspmod.met_name[0]]
-    mag = {}
-
-    if not rest_frame:
-        raise ValueError('function needs to be added!! use rest_frame=True right now!')
-        vsn = vs / (1 + redshift)
-        interp = interp1d(vsn, sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv'), axis=0,
-                          bounds_error=False, fill_value="extrapolate")
-    else:
-        vsn = np.copy(sspmod.vs[sspmod.met_name[0]])
-        sedn = sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv')
-        interp = interp1d(vsn, sedn, axis=0, bounds_error=False, fill_value="extrapolate")
-    print("Interpolation for the SEDs are done.")
-
-
-    if vega:
-        # to_vega = self.vega_mag[i] # need to be updated
-        raise ValueError('function needs to be added!! use vaga=False right now!')
-    else:
-        to_vega = 0.0
-    if solar:
-        # to_solar = self.solar_mag[i]
-        raise ValueError('function needs to be added!! use solar=False right now!')
-    else:
-        to_solar = 0.0
-
-        # c = ((vsn > self.f_vs[i].min()) & (vsn < self.f_vs[i].max())).sum()
-        # if c < 3:
-        #     print("Warning, wavelength range from SSP models is too near filter,",
-        #           " magnitude is assigned nan")
-        #     mag[i] = np.nan
-        # # and that the SED actually covers the whole filter
-        # if vsn.min() > self.f_vs[i].min() or vsn.max() < self.f_vs[i].max():
-        #     print("Warning, wavelength range from SSP models is outside of filter,",
-        #           " magnitude is assigned nan")
-        #     mag[i] = np.nan
+        # Output SEDs in units of spectral flux density Fv (erg/s/cm^2/Hz) just like the equation from the original EzGal paper (https://arxiv.org/abs/1205.0009) 
+        seds /= self.vs[self.met_name[0]].reshape(self.nvs[0], 1)
         
-    ab_source_flux = 3.631e-20  # flux of a zero mag ab source
-    
-    # mag[i] = simps(interp(self.f_vs[i]).T * self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]  # normalized Flux
-    mag['bol'] = simps(sedn/ab_source_flux/vsn[:, None], vsn, axis=0)
-    if unit.lower() == 'flux':
-        mag[i] /= 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
-    if unit.lower() == 'magnitude':
-        mag[i] = -2.5 * np.log10(mag[i]) + app + to_vega + to_solar
-    return mag
+
+        return vs, seds
+        
+
+

@@ -40,10 +40,10 @@ def git_version():
     return GIT_REVISION
 
 
-def write_version_py(filename='pymgal/version.py'):
+def write_version_py(filename='pymgal/__version__.py'):
     cnt = """
 # THIS FILE IS GENERATED FROM SETUP.PY
-version = '%(version)s'
+__version__ = '%(version)s'
 git_revision = '%(git_revision)s'
 """
     GIT_REVISION = git_version()
@@ -62,12 +62,12 @@ def setup_package():
         name='pymgal',
         packages=find_namespace_packages(),
         version=VERSION,
-        author='Weiguang Cui',
-        author_email='cuiweiguang@gmail.com',
+        author='Weiguang Cui, Patrick Janulewicz',
+        author_email='cuiweiguang@gmail.com, patrick.janulewicz@mail.mcgill.ca',
         description="A Package for Mock Observations in optical bands",
         long_description=read('README.md'),
         #packages=find_namespace_packages(),
-        requires=['numpy', 'scipy', 'astropy'],
+        requires=['numpy', 'scipy', 'astropy', 'h5py', 'PyYAML'],
         #package_dir={"./": "./pymgal/"},
         #package_data={"models": ["*.model"],"filters": ["*"]},
         include_package_data=True,
@@ -78,7 +78,7 @@ def setup_package():
                  'filters/*',
                  'refs/*']},
         license="BSD",
-        keywords='astronomy astrophysics hydro-dynamical simulation mock observation',
+        keywords='astronomy astrophysics hydrodynamical simulation mock observation',
         classifiers=[
             "Development Status :: 5 - Production/Stable",
             "Intended Audience :: Science/Research",

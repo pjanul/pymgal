@@ -1,6 +1,8 @@
 import os
 import re
 import numpy as np
+from numba import njit, prange
+from scipy.spatial import KDTree
 
 # some useful constants
 c = 299792458            # speed of light (m/sec)
@@ -491,3 +493,50 @@ def read_ised(file):
     sinds = vs.argsort()
 
     return (seds[sinds, :], ages, vs[sinds, :])
+
+
+def numba_interp1d(x, y):
+    """
+    Returns a function that performs linear interpolation manually with Numba acceleration.
+     
+    Parameters:
+      - x: 1D array of known x data.
+      - y: N-D array of known y data (interpolation happens along the first axis).
+
+    Returns:
+      - A function that takes xnew as input and returns the interpolated y values at xnew positions.
+    """
+    @njit(parallel=True)
+    def interp_function(xnew):
+        ynew = np.empty((y.shape[0], len(xnew)), dtype=y.dtype)
+
+        for i in range(len(xnew)):
+            # Find the interval x[j] <= xnew[i] < x[j+1]
+            for j in range(len(x) - 1):
+                if xnew[i] >= x[j] and xnew[i] <= x[j+1]:
+                    # Linear interpolation formula
+                    t = (xnew[i] - x[j]) / (x[j+1] - x[j])
+                    ynew[:, i] = (1 - t) * y[:, j] + t * y[:, j+1]
+                    break
+ 
+        return ynew
+ 
+    return interp_function
+
+
+@njit(parallel=True)
+def handle_seds(seds, interp_data, S_mass, ids):
+    for i in prange(seds.shape[0]):
+        tmpd = interp_data[i] * S_mass[i]
+        seds[i, ids] = tmpd
+
+
+# Create kD tree and extract the distance of the kth nearest neighbour (kth distance = 1 sigma of gaussian kernel)
+def knn_distance(positions, k):
+    kdtree = KDTree(positions)
+    _, indices = kdtree.query(positions, k + 1)  # k + 1 to exclude the point itself
+    kth_neighbors = np.take(positions, indices[:, k], axis=0)
+    kth_distances = np.linalg.norm(kth_neighbors - positions, axis=1)
+    return kth_distances
+
+

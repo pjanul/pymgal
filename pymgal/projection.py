@@ -1,23 +1,31 @@
 import numpy as np
 import astropy.units as u
 import re
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, ICRS#CartesianRepresentation
 from astropy.time import Time
-from scipy.spatial import KDTree
-import pandas as pd
+#from scipy.spatial import KDTree
 from functools import lru_cache
-#from pymgal import version
+import __version__
 # scipy must >= 0.17 to properly use this!
 # from scipy.stats import binned_statistic_2d
+from numba import njit, prange
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+import utils
 
 
-# Create kD tree and extract the distance of the kth nearest neighbour (kth distance = 1 sigma of gaussian kernel)
-def knn_distance(positions, k):
-    kdtree = KDTree(positions) 
-    _, indices = kdtree.query(positions, k + 1)  # k + 1 to exclude the point itself
-    kth_neighbors = np.take(positions, indices[:, k], axis=0)
-    kth_distances = np.linalg.norm(kth_neighbors - positions, axis=1)
-    return kth_distances
+# Cache the kernels to avoid recomputation and significantly improve runtime
+@lru_cache(maxsize=256)
+def create_gaussian_kernel(sigma):
+    x = np.arange(-3 * sigma, 3 * sigma + 1, 1)
+    y = np.arange(-3 * sigma, 3 * sigma + 1, 1)
+    # xx_kernel, yy_kernel = np.meshgrid(x, y)
+    # kernel = np.exp(-(xx_kernel**2 + yy_kernel**2) / (2.0 * sigma**2)) / (2.0 * np.pi * sigma**2)
+    xx = x[:, np.newaxis]  # Reshape x to be a column vector
+    yy = y[np.newaxis, :]  # Reshape y to be a row vector
+    
+    kernel = np.exp(-(xx**2 + yy**2) / (2.0 * sigma**2))  / (2.0 * np.pi * sigma**2)
+   
+    return kernel
 
 
 def add_array_to_large(large_array, small_array, center_x, center_y):
@@ -38,17 +46,6 @@ def add_array_to_large(large_array, small_array, center_x, center_y):
     # Add the small array to the large one
     large_array[:, start_x:end_x, start_y:end_y] += small_array[:, small_start_x:small_end_x, small_start_y:small_end_y]
     return large_array
-
-
-# Cache the kernels to avoid recomputation and significantly improve runtime
-@lru_cache(maxsize=256)
-def create_gaussian_kernel(sigma):
-    x = np.arange(-3 * sigma, 3 * sigma + 1, 1)
-    y = np.arange(-3 * sigma, 3 * sigma + 1, 1)
-    xx_kernel, yy_kernel = np.meshgrid(x, y)
-    kernel = np.exp(-(xx_kernel**2 + yy_kernel**2) / (2.0 * sigma**2)) / (2.0 * np.pi * sigma**2)
-    return kernel
-
 
 def gaussian_smoothing(distances, weights_dict, sample_hist, x_bins, y_bins, pixel_scale, max_kernel=None):
     
@@ -78,7 +75,6 @@ def gaussian_smoothing(distances, weights_dict, sample_hist, x_bins, y_bins, pix
         kernel *= weights_array[i][:, np.newaxis, np.newaxis]
         smoothed_hists = add_array_to_large(smoothed_hists, kernel, x_bins[i], y_bins[i])
 
-    
     smoothed_hists = {channel: smoothed_hists[i] for i, (channel, weights) in enumerate(weights_dict.items())}
     return smoothed_hists
 
@@ -90,9 +86,8 @@ def get_property(prop):
 
 
 class projection(object):
-    r"""load analysing data from simulation snapshots (gadget format only),
-    yt, or raw data. Currently only works with snapshot=True. Will work more
-    on other data sets.
+    r"""load analysing data from simulation snapshots,
+    yt, or raw data. Currently only works with snapshot=True. May be adapted to other datasets in the future.
 
     Parameters
     ----------
@@ -123,9 +118,9 @@ class projection(object):
                 length unit (kpc/h normally), then a slice of data [center-zthick, center+zthick]
                 will be used to make the y-map.
     SP      : Faked sky positions in [RA (longitude), DEC (latitude)] in degrees.
-                Default: [194.95, 27.98], Coma' position.
-                If [x,y,z] (len(SP) == 3) of the Earth position in the pos coordinate is given,
-                The pos - [x,y,z] are taken as the J2000 3D coordinates and converted into RA, DEC.
+                Default: [194.95, 27.98], Coma' position.  
+                If [x,y,z] (len(SP) == 3) of the Earth position in the pos coordinate is given,  
+                The pos - [x,y,z] are taken as the J2000 3D coordinates and converted into RA, DEC.  
     unit    : is the input wdata in luminosity, flux or magnitude? Default: flux, assume in ab mag.
                 Set this to true if particles' luminosity are given in wdata.
     ksmooth : An integer representing the k in kNN Gaussian smoothing. 1 sigma for the Gaussian is set to the distance to the kth neighbour in 3D space.
@@ -168,7 +163,7 @@ class projection(object):
         self.pxsize = 0.
         if len(SP) == 2:
             self.sp = SP
-            self.cc = simd.center
+            self.cc = simd.center    
         elif len(SP) == 3:
             self.sp = False
             self.cc = SP
@@ -206,15 +201,19 @@ class projection(object):
 
         pos = np.copy(s.S_pos) / s.cosmology.h / (1.+ s.redshift)  # to assumed physical
         pos -= self.cc / s.cosmology.h / (1.+ s.redshift)
-        center = s.center / s.cosmology.h / (1.+ s.redshift)
+        center = s.center  / s.cosmology.h / (1.+ s.redshift)
         kth_distance = 0  # initialize the variable and update it if self.ksmooth > 0
+        dt = d.copy()    # Save a copy of the dict and use that so you don't mess with the original one
+        #lsmooth = self.lsmooth
+        masses = s.S_mass
+        ages = s.S_age
+        metals = s.S_metal
 
-        # Calculate the smoothing lengths array if it is not precomputed
         if self.ksmooth > 0 and self.lsmooth is None:
-            print("Computing kNN distances")
-            self.lsmooth = knn_distance(pos, self.ksmooth)
+                print("Computing kNN distances")
+                self.lsmooth = utils.knn_distance(pos, self.ksmooth)
 
-
+        #lsmooth = self.lsmooth
         if isinstance(self.axis, type('')):
             if self.axis.lower() == 'y':  # x-z plane
                 pos = pos[:, [0, 2, 1]]
@@ -267,16 +266,21 @@ class projection(object):
         else:
             raise ValueError(
                 "Do not accept this value %s for projection" % self.axis)
-
+        lsmooth = self.lsmooth
         if self.zthick is not None:
             if self.sp is False:  # pos is not centered at 0,0,0
                 ids = (pos[:, 2] > self.cc[2] - self.zthick) & (pos[:, 2] < self.cc[2] + self.zthick)
             else:
                 ids = (pos[:, 2] > -self.zthick) & (pos[:, 2] < self.zthick)
+            old_pos_size = len(pos) # keep track of the number of particles we had before we cut the z thick 
             pos = pos[ids]
-            for i in d.keys():
-                d[i] = d[i][ids]
-
+            lsmooth = lsmooth[ids]
+            masses = masses[ids]
+            ages = ages[ids]
+            metals = metals[ids]
+            #dt = d.copy() # store a temporary copy of the dictionary
+            for i, vals in d.items():
+                dt[i] = d[i][ids]
         if self.ar is None:
             if self.npx == 'auto':
                 self.npx = 512
@@ -296,7 +300,7 @@ class projection(object):
                 self.rr = (self.npx-1) * self.pxsize / 2.
         self.ar /= 3600.  # arcsec to degree
 
-        if self.sp is not False:  # noraml projection
+        if self.sp is not None:  # noraml projection
             minx = -(self.npx + 1) * self.pxsize / 2
             maxx = +(self.npx + 1) * self.pxsize / 2
             miny = -(self.npx + 1) * self.pxsize / 2
@@ -304,15 +308,11 @@ class projection(object):
             xx = np.arange(minx, maxx, self.pxsize)
             yy = np.arange(miny, maxy, self.pxsize)
         else:  # we do real projection by transferring into RA, Dec
-            SC = SkyCoord(pos[:, 0], pos[:, 1], pos[:, 2], unit='kpc',
-                          representation='cartesian')
-            SC = SC.transform_to('icrs')
-            pos[:, 0], pos[:, 1] = SC.ra.degree, SC.dec.degree
 
-            SC = SkyCoord(self.cc[0], self.cc[1], self.cc[2], unit='kpc',
-                          representation='cartesian')
-            SC = SC.transform_to('icrs')
-            self.sp = [SC.ra.degree, SC.dec.degree]
+            SC = SkyCoord(self.cc[0] * u.kpc, self.cc[1] * u.kpc, self.cc[2] * u.kpc,
+                          representation_type='cartesian')
+            SC = SC.spherical
+            self.sp = [SC.lon.degree, SC.lat.degree]   # longitude and latitude are equivalent to RA, dec
 
             minx = self.sp[0] - (self.npx + 1) * self.ar / 2.
             maxx = self.sp[0] + (self.npx + 1) * self.ar / 2.
@@ -325,37 +325,40 @@ class projection(object):
         x_bins = np.digitize(pos[:, 0], xx)                                                     # define x and y bins
         y_bins = np.digitize(pos[:, 1], yy)
 
+
+
         self.cc = center  # real center in the data
-        
         # If smoothing is set to off
         if self.ksmooth == 0:
-            for i in d.keys():
-                if self.flux.lower() == 'luminosity':  # luminosity
-                    self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i])[0]
-                elif self.flux.lower() == 'flux': # flux
-                    self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=d[i]*100./s.cosmology.luminosity_distance(self.z).to('pc').value**2)[0]
-                else: # ab mag
-                    self.outd[i] = np.ma.log10(np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=10**(d[i]/-2.5))[0])
-                    self.outd[i] = -2.5*self.outd[i].filled(self.outd[i].min()/2.)
+            for i in dt.keys():
+                # If magnitude, we need to remove spots with zero flux and replace them with small values
+                if self.flux.lower() == "magnitude":
+                    hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=10**(-dt[i]/2.5))[0]
+                    min_non_zero = np.min(hist[hist > 0])
+                    hist[hist == 0] = min_non_zero / 2.0
+                    self.outd[i] = -2.5*np.log10(hist)
+
+                else: 
+                    self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=dt[i])[0]
+
 
         # If smoothing is set to on and we have at least one filter to smooth
         elif (self.ksmooth > 0) and (len(d.keys()) > 0):  
-            sample_hist =  np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=list(d.values())[0])[0] # define a sample hist using the weights from whichever filter comes first
+            sample_hist =  np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=list(dt.values())[0])[0] # define a sample hist using the weights from whichever filter comes first
             smoothed_hists = None # initialize the set of smoothed histograms 
-            if self.flux.lower() == 'luminosity':  # luminosity
-                 smoothed_hists = gaussian_smoothing(self.lsmooth, d, sample_hist, x_bins, y_bins, self.pxsize)
-            elif self.flux.lower() == 'flux': # flux
-                d_flux = {key: d[key]*100./s.cosmology.luminosity_distance(self.z).to('pc').value**2 for key in d}
-                smoothed_hists = gaussian_smoothing(self.lsmooth, d_flux, sample_hist, x_bins, y_bins, self.pxsize)
-            else: # ab mag
-                d_mag = {key: 10**(d[key]/-2.5) for key in d}
-                smoothed_hists = gaussian_smoothing(self.lsmooth, d_mag, sample_hist, x_bins, y_bins, self.pxsize)
-
+            if self.flux.lower() == "magnitude": # ab mag
+                d_val = {key: 10**(-dt[key]/2.5) for key in dt}
+                smoothed_hists = gaussian_smoothing(lsmooth, d_val, sample_hist, x_bins, y_bins, self.pxsize)
+            else:
+                d_val = {key: dt[key] for key in dt}
+                smoothed_hists = gaussian_smoothing(lsmooth, d_val, sample_hist, x_bins, y_bins, self.pxsize)
             # Set the histograms to match the filters
-            for i in d.keys():
+            for i in dt.keys():
                 if self.flux.lower() == 'magnitude':
-                    self.outd[i] = np.ma.log10(smoothed_hists[i])
-                    self.outd[i] = -2.5*self.outd[i].filled(self.outd[i].min()/2.)
+                    hist = smoothed_hists[i]
+                    min_non_zero = np.min(hist[hist > 0])
+                    hist[hist == 0] = min_non_zero / 2.0
+                    self.outd[i] = -2.5*np.log10(hist)
                 else:
                     self.outd[i] = smoothed_hists[i]
 
@@ -363,30 +366,27 @@ class projection(object):
         
 
         # Now grid the data
-        # pmax, pmin = np.max(self.S_pos, axis=0), np.min(self.S_pos, axis=0)
-        # grid_x, grid_y = np.mgrid[pmin[0]:pmax[0]:nx, pmin[1]:pmax[1]:nx]
         if self.omas or self.oage or self.omet:
-            #unsmooth_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass)[0]
             
             if self.ksmooth > 0:
                 max_sigma = 5/self.pxsize # Set the max standard deviation for the smoothing gaussian to be no more than the gravitational softening length of 5 kpc/h
-                sample_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass)[0]
-                mass_hist_dict = gaussian_smoothing(self.lsmooth, {"Mass": s.S_mass}, sample_hist, x_bins, y_bins, self.pxsize, max_kernel=max_sigma)
+                sample_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses)[0]
+                mass_hist_dict = gaussian_smoothing(lsmooth, {"Mass": masses}, sample_hist, x_bins, y_bins, self.pxsize, max_kernel=max_sigma)
                 self.outd["Mass"] = mass_hist_dict["Mass"]
 
             else:
-                self.outd["Mass"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass)[0]
+                self.outd["Mass"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses)[0]
             
         if self.oage:
-            unsmooth_mass_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass)[0]
+            unsmooth_mass_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses)[0]
             ids = unsmooth_mass_hist > 0
-            self.outd["Age"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass * s.S_age)[0]
+            self.outd["Age"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses * ages)[0]
             self.outd["Age"][ids] /= unsmooth_mass_hist[ids]
                 
         if self.omet:
-            unsmooth_mass_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass)[0]
+            unsmooth_mass_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses)[0]
             ids = unsmooth_mass_hist > 0
-            self.outd["Metal"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=s.S_mass * s.S_metal)[0]
+            self.outd["Metal"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses * metals)[0]
             self.outd["Metal"][ids] /= unsmooth_mass_hist[ids]
 
         
@@ -411,7 +411,7 @@ class projection(object):
 
         for i in self.outd.keys():
             hdu = pf.PrimaryHDU(self.outd[i].T)
-            hdu.header["SIMPLE"] = 'T'
+            hdu.header["SIMPLE"] = True
             hdu.header.comments["SIMPLE"] = 'conforms to FITS standard'
             hdu.header["BITPIX"] = int(-32)
             hdu.header.comments["BITPIX"] = '32 bit floating point'
@@ -457,8 +457,9 @@ class projection(object):
             hdu.header.comments["RCVAL3"] = 'Real center Z of the data'
             hdu.header["UNITS"] = "kpc"
             hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
-            hdu.header["PIXVAL"] = self.flux
-            hdu.header.comments["PIXVAL"] = 'in flux[ergs/s/cm^2], lumi[ergs/s] or mag.'
+            hdu.header["PIXVAL"] = "erg/s" if self.flux == "luminosity" else "erg/s/cm^2" if self.flux == "flux" else "erg/s/cm^2/Hz" if self.flux == "fv" \
+                                       else "jansky" if self.flux == "jy" else "erg/s/cm^2/angstrom" if self.flux == "fl" else "magnitude"
+            hdu.header.comments["PIXVAL"] = 'The units of the pixel values in your image'
             hdu.header["ORAD"] = float(self.rr)
             hdu.header.comments["ORAD"] = 'Rcut in physical for the image.'
             hdu.header["REDSHIFT"] = float(self.z)
@@ -467,9 +468,9 @@ class projection(object):
             hdu.header.comments["PSIZE"] = 'The pixel size in physical at simulation time'
             hdu.header["AGLRES"] = float(self.ar*3600.)
             hdu.header.comments["AGLRES"] = '\'observation\' angular resolution in arcsec'
-            hdu.header["ORIGIN"] = 'PymGal'
+            hdu.header["ORIGIN"] = 'PyMGal'
             hdu.header.comments["ORIGIN"] = 'Software for generating this mock image'
-            hdu.header["VERSION"] = "beta"  # get_property('__version__')
+            hdu.header["VERSION"] = __version__.__version__
             hdu.header.comments["VERSION"] = 'Version of the software'
             hdu.header["DATE-OBS"] = Time.now().tt.isot
             if isinstance(comments, type([])) or isinstance(comments, type(())):
@@ -480,5 +481,4 @@ class projection(object):
             else:
                 raise ValueError("Do not accept this comments type! Please use str or list")
             hdu.writeto(fname[:-5]+"-"+i+fname[-5:], overwrite=overwrite)
-
 

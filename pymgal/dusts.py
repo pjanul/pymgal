@@ -1,4 +1,5 @@
 import numpy as np
+import utils
 
 
 class charlot_fall(object):

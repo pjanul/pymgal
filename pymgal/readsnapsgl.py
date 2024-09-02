@@ -779,7 +779,7 @@ def readsnap(filename, block, endian=None, quiet=True, longid=False, nmet=11, to
 
     if filename[0][-4:].lower() == 'hdf5':
         head = readhdf5head(filename[0], quiet=quiet)
-        if block == 'Header':
+        if block == 'HEAD':
             return head
         elif (block == 'IDTP') or (block == 'IDTypes'):
             data=np.zeros(head.npart[0],dtype=np.int32)

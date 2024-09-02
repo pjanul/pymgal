@@ -1,11 +1,11 @@
 import os
 import numpy as np
 import astropy.io.fits as pyfits
-from pymgal import utils
+import utils
 from scipy.integrate import simps
 from scipy.interpolate import interp1d
 # from astropy.cosmology import FlatLambdaCDM
-
+#import time
 
 class filters(object):
     r""" load filters for telescopes.
@@ -220,34 +220,45 @@ class filters(object):
     ##############
     #  calc energy in filter  #
     ##############
-    def calc_energy(self, sspmod, simd, fn=None, Ncpu=1, dust_func=None, unit='flux',
-                    apparent=False, vega=False, solar=False, rest_frame=False):
+    def calc_energy(self, sspmod, simd, fn=None, dust_func=None, unit='flux',
+                    apparent=False, vega=False, solar=False, rest_frame=False, redshift=0.05):
         r"""
-        mag = pymgal.calc_energy(self, sspmod, simd, fn=None, Ncpu=1, dust_func=None, unit='flux',
+        mag = pymgal.calc_energy(self, sspmod, simd, fn=None, dust_func=None, unit='flux',
                                  apparent=False, vega=False, solar=False, rest_frame=False):
 
         sspmod      : loaded ssp models.
         simd        : loaded simulation data from load_data
         fn          : the name of filter/s. string, list of strings, or None
                         By default (None), all loaded filters will be included in the calculation
-        Ncpu        : The number of CPUs for parallel interpolation, default = 1
         dust_func   : The function for dust attenuetion.
-        unit        : the returned value in the filter bands, default : Flux.
-                        It can be 'luminosity' or 'magnitude'
+        unit        : the returned value in the filter bands. Can be 'luminosity', 'flux', 'magnitude', 'Fv', 'Fl', or 'Jy'
         apparent    : If you need apparent magnitude, set True. Default False
         vega        : return AB magnitude in VEGA.
         solar       : return AB magnitude in solar.
         rest_frame  : Do you want the resutls in rest_frame? default: False, in observer's frame.
                         We always assume the observer is at z = 0. If true, we force everything in rest_frame.
-        returns     : 0. Flux, default
-                      1. luminosity
-                      2. magnitude (AB), can be apparent if apparent=True, in vega mags if vega=True or in solar mags in solar=True
+        redshift    : The redshift specified by the user.
+        returns     : The brightness in the units specified by the user. 
+                      Magnitude by default is AB, can be apparent if apparent=True, in vega mags if vega=True or in solar mags in solar=True
+        
+        Available output units are (case insensitive):
+
+        ========== ===============================
+        Name       Units
+        ========== ===============================
+        Jy         Jansky
+        Fv         ergs/s/cm^2/Hz
+        Fl         ergs/s/cm^2/Angstrom
+        Flux       ergs/s/cm^2
+        Luminosity ergs/s
+        Magnitude  AB solar, or vega in absolute or apparent
+        ========== ================================
 
         Example:
             mag = pymgal.calc_mag(ssp, simd, z, fn=None)
-
+        
         Notes:
-        Calculate the Flux, Luminosity or magnitude of the given sed.
+        Calculate the flux, spectral flux density, luminosity or magnitude of the given sed.
         """
 
         # make sure an acceptable number of sed points actually go through the
@@ -267,29 +278,39 @@ class filters(object):
         #     redshift = 0
 
         if apparent:
-            app = 5. * np.log10(simd.cosmology.luminosity_distance(simd.redshift).value
-                                * 1.0e5) if simd.redshift > 0 else -np.inf
+            app = 5. * np.log10(simd.cosmology.luminosity_distance(redshift).value
+                                * 1.0e5) if redshift > 0 else -np.inf
         else:
             app = 0.0
 
-        if unit.lower() == 'magnitude':
-            unt = 'luminosity'
-        else:
-            unt = unit.lower()
 
         vs = sspmod.vs[sspmod.met_name[0]]
         mag = {}
 
-        #if not rest_frame:
-        #    vsn = vs / (1 + redshift)
-        #    interp = interp1d(vsn, sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv'), axis=0,
-        #                      bounds_error=False, fill_value="extrapolate")
-        #else:
-        vsn, sedn = sspmod.get_seds(simd, Ncpu=Ncpu, rest_frame=rest_frame, dust_func=dust_func, units='fv')
-        interp = interp1d(vsn, sedn, axis=0, bounds_error=False, fill_value="extrapolate")
+        # IMPORTANT: sedn is in units of erg/s/cm^2/Hz (i.e. Fv) for an object 10 pc away, as defined in the EzGal paper.  
+        vsn, sedn = sspmod.get_seds(simd, rest_frame=rest_frame, dust_func=dust_func)
+        
+        #start_time = time.time()
+        units=unit.lower() # case insensitive
+        
+        # If we want to get rid of the Hz dependence, convert to erg/s/cm^2
+        if units in {'luminosity', 'flux'}:
+            sedn *= sspmod.vs[sspmod.met_name[0]].reshape(sspmod.nvs[0], 1) 
+        elif units == "jy":
+            sedn *= 1e23
+        elif units == "fl":
+            sedn *= sspmod.vs[sspmod.met_name[0]].reshape(sspmod.nvs[0], 1)**2 / utils.convert_length(utils.c, outgoing='a') 
+
+        vsn = np.asarray(vsn, dtype='<f8')
+        sedn = np.asarray(sedn, dtype='<f8')
+        #interp1 = interp1d(vsn, sedn, axis=0, bounds_error=False, fill_value="extrapolate")
         print("Interpolation for the SEDs are done.")
+        interp = utils.numba_interp1d(vsn, sedn.T)
+        #end_time = time.time()
+        #print("filters_time: ", end_time - start_time)
 
         for i in fn:
+
             if vega:
                 to_vega = self.vega_mag[i]
             else:
@@ -310,9 +331,24 @@ class filters(object):
                       " magnitude is assigned nan")
                 mag[i] = np.nan
 
-            mag[i] = simps(interp(self.f_vs[i]).T * self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]  # normalized Flux
-            if unit.lower() == 'flux':
-                mag[i] /= 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0
-            if unit.lower() == 'magnitude':
-                mag[i] = -2.5 * np.log10(mag[i]) + app + to_vega + to_solar
+            # In units of solar luminosity? Verify this
+            mag[i] = simps(interp(self.f_vs[i]) * self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]  # normalized Flux
+            
+
+            L_sun = 3.846e33  # solar luminosity
+            d_L = simd.cosmology.luminosity_distance(redshift).to('pc').value * utils.convert_length(1, incoming='pc', outgoing='cm')  # convert user-defined redshift to a luminosity distance in cm (for luminosity -> flux)
+            
+  
+        # If distance dependent
+        if units in {'jy', 'fv', 'flux', 'fl'}:
+            mag[i] = mag[i] * L_sun / (4.0 * np.pi * d_L**2.0) 
+        elif units == 'luminosity':
+            mag[i] = mag[i] * L_sun
+        elif units == 'magnitude':    
+            #mag[i] = mag[i] * L_sun / (4.0 * np.pi * d_L**2.0)     # Calculate the spectral flux density Fv in erg/s/cm^2/Hz
+            mag[i] = -2.5 * np.log10(mag[i]) + app + to_vega + to_solar               
+        
+        else:
+            raise NameError('Units of %s are unrecognized!' % units)
+
         return mag
