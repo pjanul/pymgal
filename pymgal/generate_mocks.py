@@ -2,17 +2,17 @@ import numpy as np
 from astropy.io import fits
 import os, sys
 from os.path import dirname, abspath
-from readsnapsgl import readsnap
+from pymgal.readsnapsgl import readsnap
 import argparse
 import yaml
 import re
-from SSP_models import SSP_models
-from filters import filters
-import dusts
-from load_data import load_data
-from projection import projection
-import __version__
-import utils
+from pymgal.SSP_models import SSP_models
+from pymgal.filters import filters
+from pymgal import dusts
+from pymgal.load_data import load_data
+from pymgal.projection import projection
+from pymgal import __version__
+from pymgal import utils
 import numba
 #import time
 from multiprocessing import Pool
@@ -127,10 +127,14 @@ def project_to_fits(object_dir, coords, config):
         lsmooth = None
 
     # Parallelize the projection and saving process
-    args = [(proj_direc, mag, simd, config, out_val, z_obs, lsmooth, snapname) for proj_direc in projections]
+    if config["ncpu"] > 1:
+        args = [(proj_direc, mag, simd, config, out_val, z_obs, lsmooth, snapname) for proj_direc in projections]
     
-    with Pool(processes=config["ncpu"]) as pool:   
-        pool.map(project_and_save, args)
+        with Pool(processes=config["ncpu"]) as pool:   
+            pool.map(project_and_save, args)
+    else:
+        for proj_direc in projections:
+            project_and_save((proj_direc, mag, simd, config, out_val, z_obs, lsmooth, snapname))
 
 if __name__ == "__main__":
     # Parse command line arguments
