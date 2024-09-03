@@ -2,13 +2,8 @@ import os
 from pymgal import utils
 import re
 from scipy.interpolate import interp1d
-# import weight
-# import collections
-# import astro_filter_light
 import numpy as np
 import astropy.io.fits as pyfits
-
-#import time
 
 
 class SSP_models(object):
@@ -379,7 +374,7 @@ class SSP_models(object):
             if ids.size > 1:
                 Ns = np.int32(ids.size)
             else:
-                print("# WARNING: More CPUs than particles!!")
+                print(f"# WARNING: Found {ids.size} particles, which is smaller than the number of CPUs.")
                 Ns = 1  # more cpu than particles
             Lst = np.arange(0, ids.size, Ns)
             Lst = np.append(Lst, ids.size)
@@ -389,27 +384,13 @@ class SSP_models(object):
             sim_ages_array = np.asarray(simdata.S_age, dtype='<f8')
             sim_masses_array = np.asarray(simdata.S_mass, dtype='<f8')
 
-            #start_time = time.time()
-            #f = utils.custom_interp1d(ages_array, seds_array)
-            #start_time = time.time() 
-            #tmpd = f(simdata.S_age[ids]) * simdata.S_mass[ids]
-            
-            #tmpd = tmpd.astype(np.float32)
-            #end_time = time.time() 
-            #print("tmpd time: ", end_time - start_time)
-            #start_time = time.time()
             tmpd = utils.numba_interp1d(ages_array, seds_array)(sim_ages_array[ids])
             utils.handle_seds(seds, tmpd, sim_masses_array[ids], ids)  # A function that multiplies tmpd by sim masses and then updates "seds" to the right values
-            #end_time = time.time()
-            #print("Mult time: ", end_time - start_time)
-            #f = interp1d(self.ages[metmodel], self.seds[metmodel], bounds_error=False, fill_value="extrapolate")
-            #utils.assign_seds(seds, ids, tmpd) # Use the numba accelerated function from utils - otherwise it takes much longer
-          
-            #end_time = time.time()
-           # print("Time: ", end_time - start_time)
+            ls_metmodel = self.ls[metmodel]
+         
             if dust_func is not None:
-                seds[:, ids] *= dust_func(simdata.S_age[ids], self.ls[metmodel])
-
+                dust_arr = dust_func(sim_ages_array[ids], ls_metmodel)
+                utils.apply_dust(seds, ids, dust_arr)
 
         vs = np.copy(self.vs[self.met_name[0]])
         # Shift SEDs and frequencies if you're in the rest frame
