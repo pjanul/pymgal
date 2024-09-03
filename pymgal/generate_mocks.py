@@ -2,10 +2,11 @@ import numpy as np
 from astropy.io import fits
 import os, sys
 from os.path import dirname, abspath
-from pymgal.readsnapsgl import readsnap
 import argparse
 import yaml
 import re
+sys.path.append("../../pymgal") 
+from pymgal.readsnapsgl import readsnap
 from pymgal.SSP_models import SSP_models
 from pymgal.filters import filters
 from pymgal import dusts
@@ -14,7 +15,6 @@ from pymgal.projection import projection
 from pymgal import __version__
 from pymgal import utils
 import numba
-#import time
 from multiprocessing import Pool
 
 # Generate n random projection vectors
@@ -47,22 +47,18 @@ def handle_input(config):
     if config["out_val"].lower() not in {"flux", "magnitude", "luminosity", "jy", "fv", "fl"}:
         raise ValueError(f"Invalid out_val: {config['out_val']} Expected 'flux', 'magnitude', 'luminosity', 'jy', 'fv', or 'fl'.") 
 
-    if (config["mag_type"].lower() not in {"ab", "vega", "solar", "ab_apparent", "vega_apparent", "solar_apparent"}) and (config["out_val"]  == "magnitude"):
-        raise ValueError(f"Invalid mag_type: {config['mag_type']}. Expected 'AB', 'vega', 'solar', 'AB_apparent', 'vega_apparent', or 'solar_apparent'.")
+    if (config["mag_type"].lower() not in {"ab", "vega", "solar", "ab_app", "vega_app", "solar_app"}) and (config["out_val"]  == "magnitude"):
+        raise ValueError(f"Invalid mag_type: {config['mag_type']}. Expected 'AB', 'vega', 'solar', 'AB_app', 'vega_app', or 'solar_app'.")
 
 
 def project_and_save(args):
     proj_direc, mag, simd, config, out_val, z_obs, lsmooth, snapname = args
 
-    #start_time = time.time()
     print(f"Projecting photons to {proj_direc}")
     
     pj = projection(mag, simd, npx=config["npx"], unit=out_val, AR=config["AR"], redshift=z_obs, zthick=config["zthick"],
-                    axis=proj_direc, ksmooth=config["ksmooth"], lsmooth=lsmooth, outmas=config["outmas"],
+                    axis=proj_direc, mag_type=config["mag_type"], SSP_model=config["SSP_model"], dust_func=config["dust_func"], IMF=config["IMF"], ksmooth=config["ksmooth"], lsmooth=lsmooth, outmas=config["outmas"],
                     outage=config["outage"], outmet=config["outmet"])
-    
-    #end_time = time.time()
-    #print("Projection time: ", end_time - start_time)
     
     # If the projection direction has type np.ndarray, change the format; otherwise DS9 can't open it
     if isinstance(proj_direc, np.ndarray):
@@ -70,9 +66,7 @@ def project_and_save(args):
     if isinstance(proj_direc, list):
         proj_direc = f"({'°,'.join(map(str, proj_direc))}°)"
     
-    prefix = config.get("prefix", "")
-    prefix = f"{prefix}-" if prefix else ""
-    output_path = os.path.join(config["output_dir"], f"{prefix}{snapname}-{proj_direc}.fits")
+    output_path = os.path.join(config["output_dir"], f"{snapname}-{proj_direc}.fits")
     
     pj.write_fits_image(output_path, overwrite=True)
 
@@ -144,7 +138,6 @@ if __name__ == "__main__":
     parser.add_argument('config_file', type=str, help="The config.yaml file you're using to define your parameters. Make sure to include the path as well as the filename.")
     parser.add_argument('output_dir', type=str, help="Directory path where you want your files to be written.")
     parser.add_argument('--coords', type=float, nargs=4, help="The coordinates [x, y, z, r] of the projection region. (x, y, z) is the centre of the projection region and r is its radius")
-    parser.add_argument('--prefix', type=str, help="If you want your output file to have a prefix (e.g. if you want to name this object belonging to these snaps. If null, no prefix will be included.")
     parser.add_argument('--filters', type=str, nargs='*', help="The filters you want for your mock observations")
     parser.add_argument('--num_random_proj', type=int, help="The number of random projections you want. Can be 0. NOTE: setting num_random_proj = 0, proj_vecs = null, and proj_angles = null will cause an error.")
     parser.add_argument('--proj_vecs', type=str, nargs='*', help="A list projection vectors. Can be 'x', 'y', 'z' (principal axes), and/or a custom [x, y, z] in cartesian. Can be null.")
@@ -160,6 +153,7 @@ if __name__ == "__main__":
     parser.add_argument('--z_obs', type=float, help="The distance of the observation from the observer's POV. This DOES NOT affect age/evolution, only the apparent distance. If null, it defaults to max(0.05, sim z)")
     parser.add_argument('--npx', type=int, help="The number of pixels in the output image. Can also be set to 'auto' which will automatically decide the pixel number to include all particles")
     parser.add_argument('--zthick', type=float, help="The thickness cut ([center-zthick, center+zthick]) in the projection direction in kpc/h. If null, all the data is used (ie no cut is applied)")
+    parser.add_argument('--g_soft', type=float, help=" The gravitational softening length of the simulation in comoving (kpc/h). Limits smoothing for mass/age/metal maps. If null, mass/age/metal are smoothed like light")
     parser.add_argument('--outmas', type=lambda x: (x.lower() == 'true'), help="Output the mass map corresponding to your data")
     parser.add_argument('--outage', type=lambda x: (x.lower() == 'true'), help="Output the age map corresponding to your data")
     parser.add_argument('--outmet', type=lambda x: (x.lower() == 'true'), help="Output the metallicity map corresponding to your data")
