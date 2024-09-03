@@ -3,15 +3,49 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-pymgal documentation
+PyMGal documentation
 ====================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
-
+Welcome to PyMGal, a Python repository for generating optical mock observations from hydrodynamical simulations.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+
+   introduction
+   installation
+   usage
+
+User Guide
+==========
+
+.. toctree::
+   :maxdepth: 2
+   :caption: User Guide:
+
+   getting_started
+   advanced_usage
+   faq
+
+Authors
+=======
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Authors:
+   
+   * Weiguang Cui
+   Patrick Janulewicz
+
+   authors
+
+License
+=======
+
+.. toctree::
+   :maxdepth: 1
+   :caption: License:
+
+   license
+
 
