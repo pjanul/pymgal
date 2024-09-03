@@ -18,10 +18,11 @@ User Guide
 .. toctree::
    :maxdepth: 2
    :caption: User Guide:
+   installation
 
-* Getting started
+* Installation
     * Prerequisites
-    * Installation
+    * Installing PyMGal
     * Usage
 * Models
 * Filters
