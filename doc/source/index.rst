@@ -33,14 +33,7 @@ User Guide
 Authors
 =======
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Authors:
-   
-In alphabetical order by last name: 
-
-* `Weiguang Cui <https://sites.google.com/view/cuiweiguang>`_
-* `Patrick Janulewicz <https://scholar.google.com/citations?user=RpPv-UIAAAAJ&hl=en>`_ 
+.. include:: ../../AUTHORS.md
 
 
 
