@@ -1,3 +1,5 @@
+.. _ssp_models:
+
 SSP Models
 ==========
 
