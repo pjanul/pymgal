@@ -12,10 +12,6 @@ Welcome to PyMGal, a Python repository for generating optical mock observations 
    :maxdepth: 2
    :caption: Contents:
 
-   introduction
-   installation
-   usage
-
 User Guide
 ==========
 
@@ -23,9 +19,8 @@ User Guide
    :maxdepth: 2
    :caption: User Guide:
 
-   getting_started
-   advanced_usage
-   faq
+* Installation
+* Usage
 
 Authors
 =======
@@ -34,10 +29,11 @@ Authors
    :maxdepth: 1
    :caption: Authors:
    
-   * Weiguang Cui
-   Patrick Janulewicz
+In alphabetical order of last name: 
 
-   authors
+* Weiguang Cui
+* Patrick Janulewicz
+
 
 License
 =======
@@ -46,6 +42,6 @@ License
    :maxdepth: 1
    :caption: License:
 
-   license
-
+An accompanying paper is in the works for this repository. We will update this page with a citation once it is ready.
+PyMGal also borrows a lot from EzGal (http://www.baryons.org/ezgal/), so please cite them if you use this package. 
 
