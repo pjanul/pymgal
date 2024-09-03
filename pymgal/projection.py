@@ -1,9 +1,8 @@
 import numpy as np
 import astropy.units as u
 import re
-from astropy.coordinates import SkyCoord, ICRS#CartesianRepresentation
+from astropy.coordinates import SkyCoord, ICRS
 from astropy.time import Time
-#from scipy.spatial import KDTree
 from functools import lru_cache
 from pymgal import __version__
 # scipy must >= 0.17 to properly use this!
@@ -11,6 +10,7 @@ from pymgal import __version__
 from numba import njit, prange
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pymgal import utils
+
 
 
 # Cache the kernels to avoid recomputation and significantly improve runtime
@@ -99,7 +99,6 @@ class projection(object):
                 which will rotate the data points by $\alpha$ around the x-axis,
                 $\beta$ around the y-axis, and $\gamma$ around the z-axis.
                 or direction of a vector pointing to the line of sight in np.array,
-                or directly the rotation matrix [3x3] in np.array.
                 Default: "z"
     npx     : The pixel number of the grid for projection.
                 Type: int. Default: 512
@@ -118,19 +117,24 @@ class projection(object):
                 length unit (kpc/h normally), then a slice of data [center-zthick, center+zthick]
                 will be used to make the y-map.
     SP      : Faked sky positions in [RA (longitude), DEC (latitude)] in degrees.
-                Default: [194.95, 27.98], Coma' position.  
+                Default: None, calculate automatically based on 3D position.  
                 If [x,y,z] (len(SP) == 3) of the Earth position in the pos coordinate is given,  
                 The pos - [x,y,z] are taken as the J2000 3D coordinates and converted into RA, DEC.  
-    unit    : is the input wdata in luminosity, flux or magnitude? Default: flux, assume in ab mag.
+    unit    : is the input wdata in luminosity, flux, Fv, Fl, Jy, magnitude? Default: flux.
                 Set this to true if particles' luminosity are given in wdata.
+    mag_type: If the user selected unit="magnitude", keep track of the type of magnitude (AB, vega, solar) in either apparent or absolute. Default: empty string "".
     ksmooth : An integer representing the k in kNN Gaussian smoothing. 1 sigma for the Gaussian is set to the distance to the kth neighbour in 3D space.
                 Recommended value: somewhere between 20 and 80.
                 If k>0, you set the smoothing length of a particle to be the distance between the particle and its kth nearest neighbour.
                 If k=0, pymgal does not perform smoothing.
                 If k<0, throw an error.
-    lsmooth:  An array of floats where each float is the smoothing length (ie kNN distance) for a given particle.
-                Default: None, but can be set to a precomputed array to avoid redundant calculations
-    outmas  : do you want to out put stellar mass? Default: False.
+    lsmooth : An array of floats where each float is the smoothing length (ie kNN distance) for a given particle.
+                Default: None, but can be set to a precomputed array to avoid redundant calculations.
+    g_soft  : The gravitational softening length in kpc (physical), which is coverted into pixel values and used as the maximum number of pixels used for the gaussian kernel's 1 sigma.
+    dust_func: The dust function used for attenuation. Doesn't affect this class, but is printed in the output header.
+    SSP_model: The simple stellar population model used. Doesn't affect this class, but is printed in the output header.
+    IMF     : The initial mass function used. Doesn't affect this class, but is printed in the output header.
+    outmas  : do you want to output stellar mass? Default: False.
                 If True, the stellar mass in each pixel are saved.
     outage  : do you want to out put stellar age (mass weighted)? Default: False.
                 If True, the stellar age in each pixel are saved.
@@ -147,7 +151,7 @@ class projection(object):
     """
 
     def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, zthick=None,
-                 SP=[194.95, 27.98], unit='flux', ksmooth=0, lsmooth=None, outmas=False, outage=False, outmet=False):
+                 SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=5, dust_func=None, SSP_model="", IMF="", outmas=False, outage=False, outmet=False):
 
         self.axis = axis
         if isinstance(npx, type("")) or isinstance(npx, type('')):
@@ -159,77 +163,61 @@ class projection(object):
             self.z = simd.redshift
         else:
             self.z = redshift
-
+        self.SSP_model = SSP_model
+        self.dust_func = dust_func
+        self.IMF = IMF
         self.pxsize = 0.
-        if len(SP) == 2:
-            self.sp = SP
-            self.cc = simd.center    
-        elif len(SP) == 3:
-            self.sp = False
-            self.cc = SP
-        else:
-            raise ValueError("SP length should be either 2 or 3!")
-        self.rr = simd.radius/simd.cosmology.h / (1.+ simd.redshift)   # to physical in simulation time
+        self.sp = SP
+        self.cc = simd.center    
+        self.rr = simd.radius / simd.cosmology.h / (1.+ simd.redshift)   # to physical in simulation time
         self.flux = unit
+        self.mag_type = mag_type
+        self.g_soft = g_soft / simd.cosmology.h / (1.+ simd.redshift)   # to physical in simulation time
         self.omas = outmas
         self.oage = outage
         self.omet = outmet
         self.ksmooth = ksmooth
         if ksmooth < 0:
-            raise ValueError("ksmooth should be a value between 0 and 100 inclusively")
-        
+            raise ValueError("ksmooth should be a non-negative integer")
+        if g_soft <= 0:
+            raise ValueError("g_soft should be strictly greater than zero")
         self.lsmooth = lsmooth
         self.zthick = zthick
         if zthick is not None:
             self.zthick /= (simd.cosmology.h / (1.+ simd.redshift))
         self.outd = {}
 
-        # if not flux:
-        #     if isinstance(data, type({})):
-        #         self.outd = {}
-        #         for i in data.keys():
-        #             data[i] = 10**(data[i]/-2.5)
-        #             # self.outd[i] = np.zeros((npx, npx), dtype=float)
-        #     else:
-        #         raise ValueError("Do not accept this data type %s " % type(data))
-
         self._prep_out(data, simd)
 
     def _prep_out(self, d, s):
         r""" rotate the data points and project them into a 2D grid.
         """
-
+            
         pos = np.copy(s.S_pos) / s.cosmology.h / (1.+ s.redshift)  # to assumed physical
         pos -= self.cc / s.cosmology.h / (1.+ s.redshift)
         center = s.center  / s.cosmology.h / (1.+ s.redshift)
         kth_distance = 0  # initialize the variable and update it if self.ksmooth > 0
         dt = d.copy()    # Save a copy of the dict and use that so you don't mess with the original one
-        #lsmooth = self.lsmooth
         masses = s.S_mass
         ages = s.S_age
         metals = s.S_metal
 
-        if self.ksmooth > 0 and self.lsmooth is None:
-                print("Computing kNN distances")
-                self.lsmooth = utils.knn_distance(pos, self.ksmooth)
-
-        #lsmooth = self.lsmooth
+        # If you're given a projection vector array, convert it to an angle
+        if isinstance(self.axis, type(np.array([]))) and len(self.axis.shape) == 1 and len(self.axis) == 3:
+            vector = np.array(self.axis, dtype=float)
+            vector /= np.linalg.norm(vector)
+            
+            angles_list = [np.degrees(np.arctan2(vector[1], vector[2])), np.degrees(np.arctan2(-vector[0]**2,  vector[1]**2 + vector[2]**2)), 0]
+            self.axis = angles_list
+        
         if isinstance(self.axis, type('')):
             if self.axis.lower() == 'y':  # x-z plane
                 pos = pos[:, [0, 2, 1]]
-                if self.sp is False:
-                    self.cc[0], self.cc[1], self.cc[2] = center[0] - self.cc[0],\
-                        center[2] - self.cc[2], center[1] - self.cc[1]
             elif self.axis.lower() == 'x':  # y - z plane
-                pos = pos[:, [1, 2, 0]]
-                if self.sp is False:
-                    self.cc[0], self.cc[1], self.cc[2] = center[1] - self.cc[1],\
-                        center[2] - self.cc[2], center[0] - self.cc[0]
+                pos = pos[:, [2, 1, 0]]
             else:
                 if self.axis.lower() != 'z':  # project to xy plane
                     raise ValueError("Do not accept this value %s for projection" % self.axis)
-                if self.sp is False:
-                    self.cc = center - self.cc
         elif isinstance(self.axis, type([])):
             if len(self.axis) == 3:
                 sa, ca = np.sin(self.axis[0] / 180. *
@@ -238,47 +226,28 @@ class projection(object):
                                 np.pi), np.cos(self.axis[1] / 180. * np.pi)
                 sg, cg = np.sin(self.axis[2] / 180. *
                                 np.pi), np.cos(self.axis[2] / 180. * np.pi)
-                # ratation matrix from
+                # rotation matrix from
                 # http://inside.mines.edu/fs_home/gmurray/ArbitraryAxisRotation/
                 Rxyz = np.array(
                     [[cb * cg, cg * sa * sb - ca * sg, ca * cg * sb + sa * sg],
                      [cb * sg, ca * cg + sa * sb * sg, ca * sb * sg - cg * sa],
                      [-sb,     cb * sa,                ca * cb]], dtype=np.float64)
                 pos = np.dot(pos, Rxyz)
-                if self.sp is False:
-                    self.cc = np.dot(center - self.cc, Rxyz)
             else:
                 raise ValueError(
                     "Do not accept this value %s for projection" % self.axis)
-        elif isinstance(self.axis, type(np.array([]))):
-            if len(self.axis.shape) == 1:  # only vector from the line of sight.
-                normed_axis = self.axis/np.sqrt(np.sum(self.axis**2))
-                pos = np.cross(normed_axis, np.cross(pos, normed_axis))
-                if self.sp is False:
-                    self.cc = np.cross(normed_axis, np.cross(center - self.cc, normed_axis))
-            elif len(self.axis.shape) == 2:
-                if self.axis.shape[0] == self.axis.shape[1] == 3:
-                    pos = np.dot(pos, self.axis)
-                    if self.sp is False:
-                        self.cc = np.dot(center - self.cc, self.axis)
-                else:
-                    raise ValueError("Axis shape is not 3x3: ", self.axis.shape)
         else:
             raise ValueError(
                 "Do not accept this value %s for projection" % self.axis)
         lsmooth = self.lsmooth
         if self.zthick is not None:
-            if self.sp is False:  # pos is not centered at 0,0,0
-                ids = (pos[:, 2] > self.cc[2] - self.zthick) & (pos[:, 2] < self.cc[2] + self.zthick)
-            else:
-                ids = (pos[:, 2] > -self.zthick) & (pos[:, 2] < self.zthick)
+            ids = (pos[:, 2] > -self.zthick) & (pos[:, 2] < self.zthick)
             old_pos_size = len(pos) # keep track of the number of particles we had before we cut the z thick 
             pos = pos[ids]
-            lsmooth = lsmooth[ids]
+            lsmooth = lsmooth[ids] if lsmooth is not None else None
             masses = masses[ids]
             ages = ages[ids]
             metals = metals[ids]
-            #dt = d.copy() # store a temporary copy of the dictionary
             for i, vals in d.items():
                 dt[i] = d[i][ids]
         if self.ar is None:
@@ -300,34 +269,24 @@ class projection(object):
                 self.rr = (self.npx-1) * self.pxsize / 2.
         self.ar /= 3600.  # arcsec to degree
 
-        if self.sp is not None:  # noraml projection
-            minx = -(self.npx + 1) * self.pxsize / 2
-            maxx = +(self.npx + 1) * self.pxsize / 2
-            miny = -(self.npx + 1) * self.pxsize / 2
-            maxy = +(self.npx + 1) * self.pxsize / 2
-            xx = np.arange(minx, maxx, self.pxsize)
-            yy = np.arange(miny, maxy, self.pxsize)
-        else:  # we do real projection by transferring into RA, Dec
+        minx = -(self.npx + 1) * self.pxsize / 2
+        maxx = +(self.npx + 1) * self.pxsize / 2
+        miny = -(self.npx + 1) * self.pxsize / 2
+        maxy = +(self.npx + 1) * self.pxsize / 2
+        xx = np.arange(minx, maxx, self.pxsize)
+        yy = np.arange(miny, maxy, self.pxsize)
 
-            SC = SkyCoord(self.cc[0] * u.kpc, self.cc[1] * u.kpc, self.cc[2] * u.kpc,
-                          representation_type='cartesian')
-            SC = SC.spherical
-            self.sp = [SC.lon.degree, SC.lat.degree]   # longitude and latitude are equivalent to RA, dec
-
-            minx = self.sp[0] - (self.npx + 1) * self.ar / 2.
-            maxx = self.sp[0] + (self.npx + 1) * self.ar / 2.
-            miny = self.sp[1] - (self.npx + 1) * self.ar / 2.
-            maxy = self.sp[1] + (self.npx + 1) * self.ar / 2.
-            xx = np.arange(minx, maxx, self.ar)
-            yy = np.arange(miny, maxy, self.ar)
-
+        SC = SkyCoord(self.cc[0] * u.kpc, self.cc[1] * u.kpc, self.cc[2] * u.kpc,
+                          representation_type='cartesian') 
+        SC = SC.spherical
+        self.sp = [SC.lon.degree, SC.lat.degree]   # longitude and latitude are equivalent to RA, dec
 
         x_bins = np.digitize(pos[:, 0], xx)                                                     # define x and y bins
         y_bins = np.digitize(pos[:, 1], yy)
 
 
 
-        self.cc = center  # real center in the data
+        #self.cc = center  # real center in the data
         # If smoothing is set to off
         if self.ksmooth == 0:
             for i in dt.keys():
@@ -341,9 +300,22 @@ class projection(object):
                 else: 
                     self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=dt[i])[0]
 
+            if self.omas or self.oage or self.omet:
+                max_sigma = 5/self.pxsize # Set the max standard deviation for the smoothing gaussian to be no more than the gravitational softening length of 5 kpc/h
+                mass_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses)[0]
+                ids = mass_hist > 0
 
+                if self.omas:
+                    self.outd["Mass"] = mass_hist
+                if self.oage:
+                    self.outd["Age"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses * ages)[0]
+                    self.outd["Age"][ids] /= mass_hist[ids]
+                if self.omet:
+                    self.outd["Metal"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses * metals)[0]
+                    self.outd["Metal"][ids] /= mass_hist[ids]
+                    
         # If smoothing is set to on and we have at least one filter to smooth
-        elif (self.ksmooth > 0) and (len(d.keys()) > 0):  
+        elif (self.ksmooth > 0):  #and (len(d.keys()) > 0): #user is already forced to include at least one filter
             sample_hist =  np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=list(dt.values())[0])[0] # define a sample hist using the weights from whichever filter comes first
             smoothed_hists = None # initialize the set of smoothed histograms 
             if self.flux.lower() == "magnitude": # ab mag
@@ -363,31 +335,24 @@ class projection(object):
                     self.outd[i] = smoothed_hists[i]
 
 
-        
+            if self.omas or self.oage or self.omet:
+                max_sigma = self.g_soft/self.pxsize if self.g_soft is not None else None # Set the max standard deviation for the smoothing gaussian to be no more than the gravitational softening length of 5 kpc/h
+                unsmooth_mass_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses)[0]
+                #ids = mass_hist >0
+                hist_dict = gaussian_smoothing(lsmooth, {"Mass": masses, "Mass_Age": masses * ages, "Mass_Metal": masses * metals}, unsmooth_mass_hist, x_bins, y_bins, self.pxsize, max_kernel=max_sigma)
+                mass_hist = hist_dict["Mass"]
+                ids = mass_hist > 0
+                if self.omas:
+                    self.outd["Mass"] = mass_hist
+                if self.oage:
+                    age_hist = hist_dict["Mass_Age"]
+                    age_hist[ids] /= mass_hist[ids]
+                    self.outd["Age"] = age_hist
+                if self.omet:
+                    met_hist = hist_dict["Mass_Metal"]
+                    met_hist[ids] /= mass_hist[ids]  
+                    self.outd["Metal"] =  met_hist      
 
-        # Now grid the data
-        if self.omas or self.oage or self.omet:
-            
-            if self.ksmooth > 0:
-                max_sigma = 5/self.pxsize # Set the max standard deviation for the smoothing gaussian to be no more than the gravitational softening length of 5 kpc/h
-                sample_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses)[0]
-                mass_hist_dict = gaussian_smoothing(lsmooth, {"Mass": masses}, sample_hist, x_bins, y_bins, self.pxsize, max_kernel=max_sigma)
-                self.outd["Mass"] = mass_hist_dict["Mass"]
-
-            else:
-                self.outd["Mass"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses)[0]
-            
-        if self.oage:
-            unsmooth_mass_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses)[0]
-            ids = unsmooth_mass_hist > 0
-            self.outd["Age"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses * ages)[0]
-            self.outd["Age"][ids] /= unsmooth_mass_hist[ids]
-                
-        if self.omet:
-            unsmooth_mass_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses)[0]
-            ids = unsmooth_mass_hist > 0
-            self.outd["Metal"] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses * metals)[0]
-            self.outd["Metal"][ids] /= unsmooth_mass_hist[ids]
 
         
 
@@ -457,8 +422,9 @@ class projection(object):
             hdu.header.comments["RCVAL3"] = 'Real center Z of the data'
             hdu.header["UNITS"] = "kpc"
             hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
-            hdu.header["PIXVAL"] = "erg/s" if self.flux == "luminosity" else "erg/s/cm^2" if self.flux == "flux" else "erg/s/cm^2/Hz" if self.flux == "fv" \
-                                       else "jansky" if self.flux == "jy" else "erg/s/cm^2/angstrom" if self.flux == "fl" else "magnitude"
+            hdu.header["PIXVAL"] = "years" if i.lower() == "age" else "metallicity" if i.lower() == "metal" else "M_sun" if i.lower() == "mass" \
+                                    else "erg/s" if self.flux == "luminosity" else "erg/s/cm^2" if self.flux == "flux" else "erg/s/cm^2/Hz" if self.flux == "fv" \
+                                    else "jansky" if self.flux == "jy" else "erg/s/cm^2/angstrom" if self.flux == "fl" else "mag" + " (" + self.mag_type + ")"
             hdu.header.comments["PIXVAL"] = 'The units of the pixel values in your image'
             hdu.header["ORAD"] = float(self.rr)
             hdu.header.comments["ORAD"] = 'Rcut in physical for the image.'
@@ -468,6 +434,14 @@ class projection(object):
             hdu.header.comments["PSIZE"] = 'The pixel size in physical at simulation time'
             hdu.header["AGLRES"] = float(self.ar*3600.)
             hdu.header.comments["AGLRES"] = '\'observation\' angular resolution in arcsec'
+            hdu.header["ZTHICK"] = float(self.zthick) if self.zthick is not None else 'None'
+            hdu.header.comments["ZTHICK"] = 'The thickness of the projection (kpc)'
+            hdu.header["DUSTF"] = self.dust_func if self.dust_func is not None else 'None'
+            hdu.header.comments["DUSTF"] = 'The chosen dust model'
+            hdu.header["SSP_MOD"] = self.SSP_model
+            hdu.header.comments["SSP_MOD"] = 'The chosen SSP model'
+            hdu.header["IMF"] = self.IMF
+            hdu.header.comments["IMF"] = 'The chosen IMF'
             hdu.header["ORIGIN"] = 'PyMGal'
             hdu.header.comments["ORIGIN"] = 'Software for generating this mock image'
             hdu.header["VERSION"] = __version__.__version__
@@ -481,4 +455,3 @@ class projection(object):
             else:
                 raise ValueError("Do not accept this comments type! Please use str or list")
             hdu.writeto(fname[:-5]+"-"+i+fname[-5:], overwrite=overwrite)
-
