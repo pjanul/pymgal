@@ -1,15 +1,12 @@
+.. _parameters:
+
 Parameters
 ==========
 
 This document describes the various parameters used in PyMGal for generating optical mock observations. Each parameter plays a specific role in defining the characteristics of the simulation, projection, and output.
 
-Coordinate Parameters
-----------------------
 
-- **coords**:  
-    The coordinates `[x, y, z, r]` of the projection region. Here, `(x, y, z)` represents the center of the projection region, and `r` is its radius. It's recommended to overwrite this with the correct coordinates from a halo file.
-
-Model and Filter Parameters
+Models and filters
 ---------------------------
 
 - **SSP_model**:  
@@ -25,24 +22,29 @@ Model and Filter Parameters
     The telescope filters you want to mimic in your mock observations. For more details, see :ref:`Filters <filters>`
 
 - **out_val**:  
-    The units for the output data. Options include `"flux"` (erg/s/cm^2), `"jy"` (Jansky), `"Fv"` (erg/s/cm^2/Hz), `"Fl"` (erg/s/cm^2/Ångstrom), or `"magnitude"`. This is case-insensitive.
+    The units for the output data. Options include `"flux"` (erg/s/cm^2), `"jy"` (Jansky), `"Fv"` (erg/s/cm^2/Hz), `"Fl"` (erg/s/cm^2/ï¿½ngstrom), or `"magnitude"`. This is case-insensitive.
 
 - **mag_type**:  
     If `out_val` is set to `"magnitude"`, this parameter specifies the magnitude type. Options are `"AB"`, `"vega"`, `"solar"`, `"AB_app"`, `"vega_app"`, or `"solar_app"`. If `out_val` is not `"magnitude"`, this parameter has no effect.
 
-Projection Parameters
+
+Coordinates and projection 
 ----------------------
+
+
+- **coords**:  
+    The coordinates [x, y, z, r] of the projection region, where (x, y, z) represents the center of the projection region, and `r` is its radius. It's recommended to overwrite this with the correct coordinates from a halo file.
 
 - **num_random_proj**:  
     The number of random projections you want to generate. Setting this to `0`, along with `proj_vecs = null` and `proj_angles = null`, will cause an error.
 
 - **proj_vecs**:  
-    A list of projection vectors. You can specify principal axes (`"x"`, `"y"`, `"z"`) or provide custom vectors in Cartesian coordinates `[x, y, z]`. This can also be set to `null`.
+    A list of projection vectors. You can specify principal axes (i.e. "x", "y", or "z") or provide custom vectors in Cartesian coordinates [x, y, z].
 
 - **proj_angles**:  
-    A list of angles `[alpha, beta, gamma]` (in degrees) used to rotate around the x, y, and z axes, respectively. This serves the same purpose as `proj_vecs`, so you can use either or both. This can also be set to `null`.
+    A list of angles `[alpha, beta, gamma]` (in degrees) used to rotate around the x, y, and z axes, respectively. This serves the same purpose as `proj_vecs`, so you can use either or both.
 
-Miscellaneous Parameters
+Miscellaneous 
 ------------------------
 
 - **rest_frame**:  
