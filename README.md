@@ -43,7 +43,7 @@
 * The directory where you'd like to output your files.
 
 #### Output:
-* One FITS file for each selected projection angle and filter. File names will be formatted snap_{XYZ}-{proj_angle}-{filter}.fits. If you specify a prefix in the config file, they will be formatted {prefix}-snap_{XYZ}-{proj_angle}-{filter}.fits.
+* One FITS file for each selected projection angle and filter. File names will be formatted snap_{XYZ}-{proj_angle}-{filter}.fits. 
 
 ## What if I don't know the coordinates for my projections?
 
@@ -53,7 +53,7 @@
 
 ## Who do I talk to?
 
-*   Please report any issue to Weiguang Cui (cuiweiguang@gmail.com) or Patrick Janulewicz (patrick.janulewicz@mail.mcgill.ca).
+*   Please report any issue to Weiguang Cui (cuiweiguang@gmail.com) or Patrick Janulewicz (patrick.janulewicz@gmail.com).
 *   Or report a bug through issues.
 
 ## Acknowledgement
