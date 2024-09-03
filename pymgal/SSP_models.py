@@ -1,5 +1,5 @@
 import os
-import utils
+from pymgal import utils
 import re
 from scipy.interpolate import interp1d
 # import weight
@@ -7,7 +7,7 @@ from scipy.interpolate import interp1d
 # import astro_filter_light
 import numpy as np
 import astropy.io.fits as pyfits
-from scipy.integrate import simps
+
 #import time
 
 

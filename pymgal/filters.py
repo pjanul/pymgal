@@ -1,9 +1,9 @@
 import os
 import numpy as np
 import astropy.io.fits as pyfits
-import utils
-from scipy.integrate import simps
+from pymgal import utils
 from scipy.interpolate import interp1d
+from scipy.integrate import simpson
 # from astropy.cosmology import FlatLambdaCDM
 #import time
 
@@ -174,7 +174,7 @@ class filters(object):
 
         # normalization for calculating ab mags for this filter
         self.ab_flux[fname] = self.ab_source_flux * \
-            simps(self.f_tran[fname] / self.f_vs[fname], self.f_vs[fname])
+            simpson(self.f_tran[fname] / self.f_vs[fname], x=self.f_vs[fname])
 
         # store the cosmology object if passed
         # if cosmology is not None:
@@ -214,7 +214,7 @@ class filters(object):
             vs = self.solar[:, 0]
             se = self.solar[:, 1]
         interp = interp1d(vs, se, axis=0, bounds_error=False, fill_value="extrapolate")
-        sed_flux = simps(interp(self.f_vs[fn]).T * self.f_tran[fn] / self.f_vs[fn], self.f_vs[fn])
+        sed_flux = simpson(interp(self.f_vs[fn]).T * self.f_tran[fn] / self.f_vs[fn], x=self.f_vs[fn])
         return -2.5 * np.log10(sed_flux / self.ab_flux[fn])
 
     ##############
@@ -332,7 +332,7 @@ class filters(object):
                 mag[i] = np.nan
 
             # In units of solar luminosity? Verify this
-            mag[i] = simps(interp(self.f_vs[i]) * self.f_tran[i] / self.f_vs[i], self.f_vs[i]) / self.ab_flux[i]  # normalized Flux
+            mag[i] = simpson(interp(self.f_vs[i]) * self.f_tran[i] / self.f_vs[i], x=self.f_vs[i]) / self.ab_flux[i]  # normalized Flux
             
 
             L_sun = 3.846e33  # solar luminosity

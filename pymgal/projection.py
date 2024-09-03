@@ -5,12 +5,12 @@ from astropy.coordinates import SkyCoord, ICRS#CartesianRepresentation
 from astropy.time import Time
 #from scipy.spatial import KDTree
 from functools import lru_cache
-import __version__
+from pymgal import __version__
 # scipy must >= 0.17 to properly use this!
 # from scipy.stats import binned_statistic_2d
 from numba import njit, prange
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-import utils
+from pymgal import utils
 
 
 # Cache the kernels to avoid recomputation and significantly improve runtime

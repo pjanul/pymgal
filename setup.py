@@ -4,6 +4,10 @@
 import os
 import subprocess
 from setuptools import setup, find_packages, find_namespace_packages
+try: # for pip >= 10
+    from pip._internal.req import parse_requirements
+except ImportError: # for pip <= 9.0.3
+    from pip.req import parse_requirements
 
 
 MAJOR = 1
@@ -57,6 +61,8 @@ git_revision = '%(git_revision)s'
 
 
 def setup_package():
+    with open('requirements.txt') as f:
+        requirements = f.read().splitlines()
     write_version_py()
     setup(
         name='pymgal',
@@ -67,7 +73,9 @@ def setup_package():
         description="A Package for Mock Observations in optical bands",
         long_description=read('README.md'),
         #packages=find_namespace_packages(),
-        requires=['numpy', 'scipy', 'astropy', 'h5py', 'PyYAML'],
+        # requires=['numpy', 'scipy', 'astropy', 'h5py', 'PyYAML'],
+        install_requires = requirements, 
+        #parse_requirements('requirements.txt', session='hack'),
         #package_dir={"./": "./pymgal/"},
         #package_data={"models": ["*.model"],"filters": ["*"]},
         include_package_data=True,
