@@ -13,19 +13,19 @@ Model and Filter Parameters
 ---------------------------
 
 - **SSP_model**:  
-    The Simple Stellar Population (SSP) model you wish to use. The full list of available models can be found in `pymgal//models`.
+    The Simple Stellar Population (SSP) model you wish to use. For more details, see :ref:`SSP Models <ssp_models>`.
 
 - **IMF**:  
-    The Initial Mass Function (IMF) assumed by the SSP model. Available options are `"chab"` (Chabrier), `"krou"` (Kroupa), or `"salp"` (Salpeter).
+    The Initial Mass Function (IMF) assumed by the SSP model, such as Salpter, Chabrier, or Kroupa. For more details, see :ref:`SSP Models <ssp_models>`.
 
 - **dust_func**:  
-    The dust attenuation function used in the model. Options include `"null"` (no dust), `"charlot_fall"` (Charlot and Fall 2000), or `"calzetti"` (Calzetti et al. 2000).
+    The dust attenuation function used in the model. Options include no dust, "charlot_fall" (Charlot and Fall 2000), or "calzetti" (Calzetti et al. 2000).
 
 - **filters**:  
-    The telescope filters you want to mimic in your mock observations. You can list multiple filters here.
+    The telescope filters you want to mimic in your mock observations. For more details, see :ref:`Filters <filters>`
 
 - **out_val**:  
-    The units for the output data. Options include `"flux"` (erg/s/cm^2), `"jy"` (Jansky), `"Fv"` (erg/s/cm^2/Hz), `"Fl"` (erg/s/cm^2/Ã…ngstrom), or `"magnitude"`. This is case-insensitive.
+    The units for the output data. Options include `"flux"` (erg/s/cm^2), `"jy"` (Jansky), `"Fv"` (erg/s/cm^2/Hz), `"Fl"` (erg/s/cm^2/Ångstrom), or `"magnitude"`. This is case-insensitive.
 
 - **mag_type**:  
     If `out_val` is set to `"magnitude"`, this parameter specifies the magnitude type. Options are `"AB"`, `"vega"`, `"solar"`, `"AB_app"`, `"vega_app"`, or `"solar_app"`. If `out_val` is not `"magnitude"`, this parameter has no effect.
