@@ -6,7 +6,7 @@
 PyMGal documentation
 ====================
 
-Welcome to PyMGal, a Python repository for generating optical mock observations from hydrodynamical simulations.
+Welcome to PyMGal, a Python repository for generating optical mock observations from cosmological simulations. It works with all flavours of Gadget and GIZMO. PyMGal calculates brightness given some simple stellar population (SSP) model and a telescope filter. It then projects the data into a realistic 2D image.
 
 
 User Guide
@@ -16,6 +16,9 @@ User Guide
    :maxdepth: 2
 
    installation
+   models
+   filters
+   parameters
 
 Authors
 =======
@@ -32,5 +35,5 @@ License
    :caption: License:
 
 An accompanying paper is in the works for this repository. We will update this page with a citation once it is ready.
-PyMGal also borrows a lot from EzGal (http://www.baryons.org/ezgal/), so please cite them if you use this package. 
+PyMGal borrows a lot from EzGal (http://www.baryons.org/ezgal/), so please cite them if you use this package. 
 
