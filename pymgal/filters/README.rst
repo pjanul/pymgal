@@ -491,4 +491,25 @@ Filters List
    * - 159
      - Roman_F184
      - Roman F184 (https://roman.gsfc.nasa.gov/science/Roman_Reference_Information.html via SVO)
+   * - 160
+     - CSST_nuv
+     - Chinese Space Station Telescope nuv 
+   * - 161
+     - CSST_g
+     - Chinese Space Station Telescope g 
+   * - 162
+     - CSST_i
+     - Chinese Space Station Telescope i 
+   * - 163
+     - CSST_r
+     - Chinese Space Station Telescope r 
+   * - 164
+     - CSST_u
+     - Chinese Space Station Telescope u 
+   * - 165
+     - CSST_y
+     - Chinese Space Station Telescope y 
+   * - 166
+     - CSST_z
+     - Chinese Space Station Telescope z 
   
