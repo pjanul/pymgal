@@ -2,7 +2,7 @@
 
 
 
-Filters List
+Filters
 ============
 
 .. list-table::
