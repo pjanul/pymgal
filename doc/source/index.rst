@@ -8,27 +8,14 @@ PyMGal documentation
 
 Welcome to PyMGal, a Python repository for generating optical mock observations from hydrodynamical simulations.
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
 
 User Guide
-==========
+=======
 
 .. toctree::
    :maxdepth: 2
-   :caption: User Guide:
+
    installation
-
-* Installation
-    * Prerequisites
-    * Installing PyMGal
-    * Usage
-* Models
-* Filters
-* Parameters
-
-
 
 Authors
 =======
