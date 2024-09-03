@@ -19,8 +19,15 @@ User Guide
    :maxdepth: 2
    :caption: User Guide:
 
-* Installation
-* Usage
+* Getting started
+    * Prerequisites
+    * Installation
+    * Usage
+* Models
+* Filters
+* Parameters
+
+
 
 Authors
 =======
@@ -29,10 +36,11 @@ Authors
    :maxdepth: 1
    :caption: Authors:
    
-In alphabetical order of last name: 
+In alphabetical order by last name: 
 
-* Weiguang Cui
-* Patrick Janulewicz
+* `Weiguang Cui <https://sites.google.com/view/cuiweiguang>`_
+* `Patrick Janulewicz <https://scholar.google.com/citations?user=RpPv-UIAAAAJ&hl=en>`_ 
+
 
 
 License
