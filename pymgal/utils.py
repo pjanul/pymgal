@@ -530,6 +530,9 @@ def handle_seds(seds, interp_data, S_mass, ids):
         tmpd = interp_data[i] * S_mass[i]
         seds[i, ids] = tmpd
 
+@njit(parallel=True)
+def apply_dust(seds, ids, dust_arr):
+    seds[:, ids] *= dust_arr
 
 # Create kD tree and extract the distance of the kth nearest neighbour (kth distance = 1 sigma of gaussian kernel)
 def knn_distance(positions, k):
