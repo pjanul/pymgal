@@ -23,8 +23,12 @@ To install the necessary dependencies, simply enter your/path/to/pymgal (i.e. th
   
 The config.yaml file
 -------------
-The config.yaml file contains modifiable parameters including the coordinates of your projection region, filters, SSP models, and many more. Open it and take a look. You can play around with these parameters, but as long as you have valid coordinates, the other default values should be enough to get you started. The file can be found at your/path/to/pymgal/pymgal/config.yaml (i.e. the inner PyMGal directory). For more details on this, see the Parameters page.
+The config.yaml file contains modifiable parameters including the coordinates of your projection region, filters, SSP models, and many more. It should look something like the image below. You can play around with these parameters, but as long as you have valid coordinates, the other default values should be enough to get you started. The file can be found at your/path/to/pymgal/pymgal/config.yaml (i.e. the inner PyMGal directory). For more details on this, see the  :ref:`Parameters <parameters>` page.
 
+.. image:: ../build/html/_static/config.png
+   :alt: config
+   :width: 100%
+   :align: center
 
 Running the code
 -------------
