@@ -9,6 +9,12 @@ PyMGal documentation
 Welcome to PyMGal, a Python repository for generating optical mock observations from cosmological simulations. It works with all flavours of Gadget and GIZMO. PyMGal calculates brightness given some simple stellar population (SSP) model and a telescope filter. It then projects the data into a realistic 2D image.
 
 
+.. image:: ../build/html/_static/pymgal_demo.png
+   :alt: demo_image
+   :width: 400px
+   :align: center
+   
+   
 User Guide
 =======
 
