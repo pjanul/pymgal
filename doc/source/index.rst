@@ -14,6 +14,10 @@ Welcome to PyMGal, a Python repository for generating optical mock observations 
    :width: 100%
    :align: center
    
+
+.. raw:: html
+
+   <br style="clear: both;"/>
    
 User Guide
 =======
