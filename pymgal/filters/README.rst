@@ -495,21 +495,21 @@ Filters List
      - CSST_nuv
      - Chinese Space Station Telescope nuv 
    * - 161
-     - CSST_g
+     - CSST_u
      - Chinese Space Station Telescope g 
    * - 162
-     - CSST_i
+     - CSST_g
      - Chinese Space Station Telescope i 
    * - 163
      - CSST_r
      - Chinese Space Station Telescope r 
    * - 164
-     - CSST_u
+     - CSST_i
      - Chinese Space Station Telescope u 
    * - 165
-     - CSST_y
+     - CSST_z
      - Chinese Space Station Telescope y 
    * - 166
-     - CSST_z
+     - CSST_y
      - Chinese Space Station Telescope z 
   
