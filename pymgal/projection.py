@@ -131,9 +131,7 @@ class projection(object):
     lsmooth : An array of floats where each float is the smoothing length (ie kNN distance) for a given particle.
                 Default: None, but can be set to a precomputed array to avoid redundant calculations.
     g_soft  : The gravitational softening length in kpc (physical), which is coverted into pixel values and used as the maximum number of pixels used for the gaussian kernel's 1 sigma.
-    dust_func: The dust function used for attenuation. Doesn't affect this class, but is printed in the output header.
-    SSP_model: The simple stellar population model used. Doesn't affect this class, but is printed in the output header.
-    IMF     : The initial mass function used. Doesn't affect this class, but is printed in the output header.
+    noise   : The noise level in Lsun/arcsec^2
     outmas  : do you want to output stellar mass? Default: False.
                 If True, the stellar mass in each pixel are saved.
     outage  : do you want to out put stellar age (mass weighted)? Default: False.
@@ -151,7 +149,7 @@ class projection(object):
     """
 
     def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, zthick=None,
-                 SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=5, dust_func=None, SSP_model="", IMF="", outmas=False, outage=False, outmet=False):
+                 SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=5, noise=0, outmas=False, outage=False, outmet=False):
 
         self.axis = axis
         if isinstance(npx, type("")) or isinstance(npx, type('')):
@@ -163,23 +161,21 @@ class projection(object):
             self.z = simd.redshift
         else:
             self.z = redshift
-        self.SSP_model = SSP_model
-        self.dust_func = dust_func
-        self.IMF = IMF
         self.pxsize = 0.
         self.sp = SP
         self.cc = simd.center    
         self.rr = simd.radius / simd.cosmology.h / (1.+ simd.redshift)   # to physical in simulation time
         self.flux = unit
         self.mag_type = mag_type
-        self.g_soft = g_soft / simd.cosmology.h / (1.+ simd.redshift)   # to physical in simulation time
+        self.g_soft = g_soft / simd.cosmology.h / (1.+ simd.redshift) if g_soft is not None else None  # to physical in simulation time
         self.omas = outmas
         self.oage = outage
         self.omet = outmet
         self.ksmooth = ksmooth
+        self.noise = noise
         if ksmooth < 0:
             raise ValueError("ksmooth should be a non-negative integer")
-        if g_soft <= 0:
+        if g_soft is not None and g_soft <= 0:
             raise ValueError("g_soft should be strictly greater than zero")
         self.lsmooth = lsmooth
         self.zthick = zthick
@@ -285,7 +281,7 @@ class projection(object):
         y_bins = np.digitize(pos[:, 1], yy)
 
 
-
+        
         #self.cc = center  # real center in the data
         # If smoothing is set to off
         if self.ksmooth == 0:
@@ -301,7 +297,6 @@ class projection(object):
                     self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=dt[i])[0]
 
             if self.omas or self.oage or self.omet:
-                max_sigma = 5/self.pxsize # Set the max standard deviation for the smoothing gaussian to be no more than the gravitational softening length of 5 kpc/h
                 mass_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses)[0]
                 ids = mass_hist > 0
 
@@ -353,8 +348,26 @@ class projection(object):
                     met_hist[ids] /= mass_hist[ids]  
                     self.outd["Metal"] =  met_hist      
 
+        pixel_area = (self.ar * 3600) ** 2 # Convert AR back to units from deg and compute the area of a pixel in arcsec^2
+        #print(pixel_area, self.noise * pixel_area)
+        for i in dt.keys():
+            noise_stdev = self.noise[i]
+            if noise_stdev is None:
+                continue
+            if self.flux == "magnitude":
+                print("self noise sdtev: ", noise_stdev) 
+                lum_noise = 10**(noise_stdev/-2.5)
+                print(lum_noise)
+                lum_vals = 10**(self.outd[i]/-2.5)
+                
+                lum_vals += np.random.normal(loc=0.0, scale=lum_noise * pixel_area, size=self.outd[i].shape)
+                #min_non_zero = np.min(lum_vals[lum_vals > 0])
+                #lum_vals[lum_vals <= 0] = min_non_zero / np.abs(np.random.normal(loc=0.0, scale=2)) # randomly add a little bit to the minimum values
 
-        
+                self.outd[i] = -2.5 * np.log10(lum_vals) 
+            else:
+                print("self.noise[i]", i, noise_stdev)
+                self.outd[i] += np.random.normal(loc=0.0, scale=noise_stdev * pixel_area, size=self.outd[i].shape)
 
     def write_fits_image(self, fname, comments='None', overwrite=False):
         r"""
@@ -436,12 +449,6 @@ class projection(object):
             hdu.header.comments["AGLRES"] = '\'observation\' angular resolution in arcsec'
             hdu.header["ZTHICK"] = float(self.zthick) if self.zthick is not None else 'None'
             hdu.header.comments["ZTHICK"] = 'The thickness of the projection (kpc)'
-            hdu.header["DUSTF"] = self.dust_func if self.dust_func is not None else 'None'
-            hdu.header.comments["DUSTF"] = 'The chosen dust model'
-            hdu.header["SSP_MOD"] = self.SSP_model
-            hdu.header.comments["SSP_MOD"] = 'The chosen SSP model'
-            hdu.header["IMF"] = self.IMF
-            hdu.header.comments["IMF"] = 'The chosen IMF'
             hdu.header["ORIGIN"] = 'PyMGal'
             hdu.header.comments["ORIGIN"] = 'Software for generating this mock image'
             hdu.header["VERSION"] = __version__.__version__
