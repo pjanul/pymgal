@@ -276,7 +276,7 @@ def readsnapgd(filename, block, endian=None, quiet=False, longid=False, nmet=11,
 
 # Read Block
 def read_block(npf, block, endian, quiet, longid, fmt, pty, rawdata):
-    from readsnapsgl import readsnapgd # import rhead
+    #from readsnapsgl import readsnapgd # import rhead
     global nmets
     endf = fstat(npf.fileno()).st_size
 
