@@ -31,7 +31,7 @@ In most cases, the only API needed for PyMGal is the `MockObservation` object. H
 
    from pymgal import MockObservation
 
-   obs = MockObservation("/path/to/snapshot", [x_c, y_c, z_c, r], args=default_args)   
+   obs = MockObservation("/path/to/snapshot", [x_c, y_c, z_c, r])   
    obs.params["out_val"] = "luminosity"
    obs.get_mags()
    obs.project("/path/to/output")
@@ -39,10 +39,36 @@ In most cases, the only API needed for PyMGal is the `MockObservation` object. H
 
 Modifiable parameters
 -------------
-The config.yaml file contains modifiable parameters including the coordinates of your projection region, filters, SSP models, and many more. It should look something like the image below. You can play around with these parameters, but as long as you have valid coordinates, the other default values should be enough to get you started. For more details on this, see the  :ref:`Parameters <parameters>` page.
 
-.. image:: ../build/html/_static/params.png
-   :alt: params
-   :width: 100%
-   :align: center
+There are many different parameters you can modify for your magnitude calculations and your projections. Here is a list of them. For more information, see the :ref:Parameters <parameters> page.
 
+
+.. code-block:: python
+
+   class MockObservation(object):
+       def __init__(self, sim_file, coords, args=None):
+           # Default parameter values
+           defaults = {
+               "model": "bc03",
+               "imf": "chab",
+               "dustf": None,
+               "custom_model": None,
+               "filters": ["sdss_r"],
+               "out_val": "flux",
+               "mag_type": "AB",
+               "proj_vecs": "z",
+               "proj_angs": None,
+               "proj_rand": 0,
+               "rest_frame": True,
+               "AR": 1.2,
+               "npx": 512,
+               "z_obs": 0.1,
+               "ksmooth": 100,
+               "g_soft": None,
+               "thickness": None,
+               "ncpu": 16,
+               "noise": None,
+               "outmas": True,
+               "outage": False,
+               "outmet": False
+           }
