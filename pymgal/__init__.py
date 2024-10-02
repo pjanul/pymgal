@@ -13,6 +13,8 @@ from pymgal import utils
 from pymgal.projection import projection
 from pymgal import dusts
 from pymgal import __version__
+from pymgal.mock_observation import MockObservation
+
 
 __author__ = ['Weiguang Cui', 'Patrick Janulewicz']
 __email__ = ['cuiweiguang@gmail.com', 'patrick.janulewicz@gmail.com']
