@@ -1,5 +1,5 @@
 import numpy as np
-import utils
+from pymgal import utils
 from numba import njit
 import time
 
