@@ -7,6 +7,7 @@ from scipy.integrate import simpson
 # from astropy.cosmology import FlatLambdaCDM
 #import time
 
+
 class filters(object):
     r""" load filters for telescopes.
     filter = SSP_model(path, name)
@@ -37,7 +38,8 @@ class filters(object):
         self.ab_flux = {}
         self.vega_mag = {}
         self.solar_mag = {}
-
+        self.noises = {}
+        
         # tolerance for determining whether a given zf matches a stored zf
         # the tolerance is typical set by ezsps after creating a new astro filter
         # but it is also defined here to have a default value
@@ -216,12 +218,12 @@ class filters(object):
         interp = interp1d(vs, se, axis=0, bounds_error=False, fill_value="extrapolate")
         sed_flux = simpson(interp(self.f_vs[fn]).T * self.f_tran[fn] / self.f_vs[fn], x=self.f_vs[fn])
         return -2.5 * np.log10(sed_flux / self.ab_flux[fn])
-
+    
     ##############
     #  calc energy in filter  #
     ##############
     def calc_energy(self, sspmod, simd, fn=None, dust_func=None, unit='flux',
-                    apparent=False, vega=False, solar=False, rest_frame=False, redshift=0.05):
+                    apparent=False, vega=False, solar=False, rest_frame=False, noise=None,  redshift=0.05):
         r"""
         mag = pymgal.calc_energy(self, sspmod, simd, fn=None, dust_func=None, unit='flux',
                                  apparent=False, vega=False, solar=False, rest_frame=False):
@@ -286,7 +288,6 @@ class filters(object):
 
         vs = sspmod.vs[sspmod.met_name[0]]
         mag = {}
-
         # IMPORTANT: sedn is in units of erg/s/cm^2/Hz (i.e. Fv) for an object 10 pc away, as defined in the EzGal paper.  
         vsn, sedn = sspmod.get_seds(simd, rest_frame=rest_frame, dust_func=dust_func)
         
@@ -294,12 +295,12 @@ class filters(object):
         units=unit.lower() # case insensitive
         
         # If we want to get rid of the Hz dependence, convert to erg/s/cm^2
-        if units in {'luminosity', 'flux'}:
+        if units in {'luminosity', 'flux', 'lsun'}:
             sedn *= sspmod.vs[sspmod.met_name[0]].reshape(sspmod.nvs[0], 1) 
         elif units == "jy":
             sedn *= 1e23
         elif units == "fl":
-            sedn *= sspmod.vs[sspmod.met_name[0]].reshape(sspmod.nvs[0], 1)**2 / utils.convert_length(utils.c, outgoing='a') 
+            sedn *= sspmod.ls[sspmod.met_name[0]].reshape(sspmod.nls[0], 1)**2 / utils.convert_length(utils.c, outgoing='a') 
 
         vsn = np.asarray(vsn, dtype='<f8')
         sedn = np.asarray(sedn, dtype='<f8')
@@ -308,9 +309,8 @@ class filters(object):
         interp = utils.numba_interp1d(vsn, sedn.T)
         #end_time = time.time()
         #print("filters_time: ", end_time - start_time)
-
+        
         for i in fn:
-
             if vega:
                 to_vega = self.vega_mag[i]
             else:
@@ -319,7 +319,27 @@ class filters(object):
                 to_solar = self.solar_mag[i]
             else:
                 to_solar = 0.0
+ 
 
+            d_L = simd.cosmology.luminosity_distance(redshift).to('pc').value * utils.convert_length(1, incoming='pc', outgoing='cm')  # convert user-defined redshift to a luminosity distance in cm (for luminosity -> flux)
+            L_sun = 3.846e33 # solar luminosity
+        
+            # Handle conversions for Gaussian noise
+            lambda_c = simpson(self.f_ls[i] * self.f_tran[i], x=self.f_ls[i]) / simpson(self.f_tran[i], x=self.f_ls[i])
+            nu_c = simpson(self.f_vs[i] * self.f_tran[i], x=self.f_vs[i]) / simpson(self.f_tran[i], x=self.f_vs[i])
+            tnoise = noise           # temporary dummy noise value so we don't overwrite the user's input
+            if noise is not None:
+                tnoise = noise + to_vega + to_solar + app if units == "magnitude" else 10**(-0.4*(noise+48.6))  #output magnitude if needed, otherwise convert to Fv
+                tnoise = (
+                    tnoise * nu_c * (4.0 * np.pi * d_L**2.0) if units == "luminosity" else
+                    tnoise * nu_c * (4.0 * np.pi * d_L**2.0) / L_sun if units == "lsun" else
+                    tnoise * nu_c if units == "flux" else
+                    tnoise * 10**23 if units == "jy" else
+                    tnoise * lambda_c**2 / utils.convert_length(utils.c, outgoing='a') if units == "fl" 
+                    else tnoise         # if units are "fv"
+                )
+            self.noises[i] = tnoise
+            
             c = ((vsn > self.f_vs[i].min()) & (vsn < self.f_vs[i].max())).sum()
             if c < 3:
                 print("Warning, wavelength range from SSP models is too near filter,",
@@ -330,25 +350,24 @@ class filters(object):
                 print("Warning, wavelength range from SSP models is outside of filter,",
                       " magnitude is assigned nan")
                 mag[i] = np.nan
-
+            #print("nu_c", nu_c)
             # In units of solar luminosity? Verify this
             mag[i] = simpson(interp(self.f_vs[i]) * self.f_tran[i] / self.f_vs[i], x=self.f_vs[i]) / self.ab_flux[i]  # normalized Flux
             
-
-            L_sun = 3.846e33  # solar luminosity
-            d_L = simd.cosmology.luminosity_distance(redshift).to('pc').value * utils.convert_length(1, incoming='pc', outgoing='cm')  # convert user-defined redshift to a luminosity distance in cm (for luminosity -> flux)
-            
-  
-        # If distance dependent
-        if units in {'jy', 'fv', 'flux', 'fl'}:
-            mag[i] = mag[i] * L_sun / (4.0 * np.pi * d_L**2.0) 
-        elif units == 'luminosity':
-            mag[i] = mag[i] * L_sun
-        elif units == 'magnitude':    
-            #mag[i] = mag[i] * L_sun / (4.0 * np.pi * d_L**2.0)     # Calculate the spectral flux density Fv in erg/s/cm^2/Hz
-            mag[i] = -2.5 * np.log10(mag[i]) + app + to_vega + to_solar               
+            # If distance dependent
+            if units in {'jy', 'fv', 'flux', 'fl'}:
+                mag[i] = mag[i] * L_sun / (4.0 * np.pi * d_L**2.0) 
+            elif units == 'luminosity':
+                mag[i] = mag[i] * L_sun
+            elif units == 'lsun':
+                mag[i] = mag[i]
+            elif units == 'magnitude': 
+                mag[i] = mag[i] * L_sun / (4.0 * np.pi * d_L**2.0)          # Calculate the spectral flux density Fv in erg/s/cm^2/Hz
+                mag[i] = -2.5 * np.log10(mag[i]) - 48.60 + app + to_vega + to_solar               
         
-        else:
-            raise NameError('Units of %s are unrecognized!' % units)
+            else:
+                raise NameError('Units of %s are unrecognized!' % units)
+         
 
+            
         return mag
