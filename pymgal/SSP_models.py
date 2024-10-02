@@ -369,7 +369,7 @@ class SSP_models(object):
             if self.nmets > 1:
                 ids = np.where(mids == i)[0]
             else:
-                ids = np.ones(simdata.S_metal.size, dtype=np.bool)
+                ids = np.ones(simdata.S_metal.size, dtype=bool)
 
             if ids.size > 1:
                 Ns = np.int32(ids.size)
@@ -405,6 +405,3 @@ class SSP_models(object):
         
 
         return vs, seds
-        
-
-
