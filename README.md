@@ -53,7 +53,7 @@ obs.project("/path/to/output")
 Modifiable parameters
 -------------
 
-There are many different parameters you can modify for your magnitude calculations and your projections. Here is a list of them. For more information, see the :ref:`Parameters <parameters>` page.
+There are many different parameters you can modify for your magnitude calculations and your projections. Here is a list of them. For more information, see documentation website here: [https://pymgal.readthedocs.io](https://pymgal.readthedocs.io).
 
 ```python 
 class MockObservation(object):
