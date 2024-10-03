@@ -25,7 +25,11 @@ To install the necessary dependencies, simply enter your/path/to/pymgal (i.e. th
 Usage
 -------------
 
-In most cases, the only API needed for PyMGal is the `MockObservation` object. Here's an example of how to import and generate the MockObservation object, as well as how to modify it's parameters. You can either modify the parameters as you create the object, or you can switch them after initializing. MockObservation requires two mandatory parameters: the path to your snapshot file and the coordimates + radius of the region you want to consider. Once you initialize the object, you can calculate magnitudes of particles in your preferred output unit using the get_mags() function. You can also save projection files using the project() function, provided you've given the function your output directoy. Here is a sample to get you started. If all goes well, you should see at least one newly formed snap_{XYZ}-{proj_angle}-{filter}.fits file in your output directory.
+In most cases, the only API needed for PyMGal is the MockObservation object. MockObservation objects require two mandatory parameters: the path to your snapshot file and the coordimates + radius of the region you want to consider. 
+
+Once you initialize the object, you can calculate magnitudes of particles in your preferred output unit using the get_mags() function. You can also save projection files using the project() function. If you call project() before calling get_mags(), the magnitudes will automatically be calculated.
+
+Here is a sample to get you started. If all goes well, you should see at least one newly formed snap_{XYZ}-{proj_angle}-{filter}.fits file in your output directory.
 
 .. code-block:: python
 
