@@ -104,7 +104,7 @@ class MockObservation(object):
 
     """
 
-    def __init__(self, sim_file, coords, args=None):
+    def __init__(self, sim_file, coords, params=None):
         # Default parameter values
         defaults = {
             "model": SSP_models('bc03', IMF='chab', has_masses=True),
@@ -130,12 +130,12 @@ class MockObservation(object):
             "quiet": True
         }
 
-        # If args is not provided, use the default values
-        if args is None:
-            args = {}
+        # If params is not provided, use the default values
+        if params is None:
+            params = {}
 
-        # Merge provided args with default values
-        self.params = {**defaults, **args}
+        # Merge provided params with default values
+        self.params = {**defaults, **params}
 
         # Assign essential attributes
         self.sim_file = sim_file
