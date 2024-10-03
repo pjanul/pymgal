@@ -38,14 +38,16 @@ Once you initialize the object, you can calculate magnitudes of particles in you
 
 Here is a sample to get you started. If all goes well, you should see at least one newly formed snap_{XYZ}-{proj_angle}-{filter}.fits file in your output directory.
 
-.. code-block:: python
 
-   from pymgal import MockObservation
 
-   obs = MockObservation("/path/to/snapshot", [x_c, y_c, z_c, r])   
-   obs.params["out_val"] = "luminosity"
-   obs.get_mags()
-   obs.project("/path/to/output")
+```python
+from pymgal import MockObservation
+
+obs = MockObservation("/path/to/snapshot", [x_c, y_c, z_c, r])   
+obs.params["out_val"] = "luminosity"
+obs.get_mags()
+obs.project("/path/to/output")
+```
 
 
 Modifiable parameters
@@ -53,36 +55,36 @@ Modifiable parameters
 
 There are many different parameters you can modify for your magnitude calculations and your projections. Here is a list of them. For more information, see the :ref:`Parameters <parameters>` page.
 
+```python 
+class MockObservation(object):
+    def __init__(self, sim_file, coords, args=None):
+        # Default parameter values
+        defaults = {
+            "model": "bc03",
+            "imf": "chab",
+            "dustf": None,
+            "custom_model": None,
+            "filters": ["sdss_r"],
+            "out_val": "flux",
+            "mag_type": "AB",
+            "proj_vecs": "z",
+            "proj_angs": None,
+            "proj_rand": 0,
+            "rest_frame": True,
+            "AR": 1.2,
+            "npx": 512,
+            "z_obs": 0.1,
+            "ksmooth": 100,
+            "g_soft": None,
+            "thickness": None,
+            "ncpu": 16,
+            "noise": None,
+            "outmas": True,
+            "outage": False,
+            "outmet": False
+        }
+```
 
-.. code-block:: python
-
-   class MockObservation(object):
-       def __init__(self, sim_file, coords, args=None):
-           # Default parameter values
-           defaults = {
-               "model": "bc03",
-               "imf": "chab",
-               "dustf": None,
-               "custom_model": None,
-               "filters": ["sdss_r"],
-               "out_val": "flux",
-               "mag_type": "AB",
-               "proj_vecs": "z",
-               "proj_angs": None,
-               "proj_rand": 0,
-               "rest_frame": True,
-               "AR": 1.2,
-               "npx": 512,
-               "z_obs": 0.1,
-               "ksmooth": 100,
-               "g_soft": None,
-               "thickness": None,
-               "ncpu": 16,
-               "noise": None,
-               "outmas": True,
-               "outage": False,
-               "outmet": False
-           }
 ## What if I don't know the coordinates for my projections?
 
 * In this case, you'll probably need halo catalogue data. Halo catalogues come in many formats including AHF (Amiga Halo Finder), FoF (Friends of Friends), Rockstar, and more. These catalogues will contain information regarding the physical positions and merger history of the particles in your simulation. You'll need to use these catalogues to obtain the physical coordinates of whatever object you'd like to project.
