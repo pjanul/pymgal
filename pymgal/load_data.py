@@ -58,7 +58,6 @@ class load_data(object):
 
         if snapshot:
             self._load_snap(snapname, nmet)
-            print("Snapshot file successfully read:", snapname)
         elif yt_data is not None:
             self._load_yt(yt_data)
         elif datafile is not None:
