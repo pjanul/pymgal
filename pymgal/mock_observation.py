@@ -100,6 +100,7 @@ class MockObservation(object):
                        If True, the stellar age in each pixel are saved.
     outmet         : do you want to out put stellar metallicity (mass weighted)? Default: False.
                        If True, the stellar metallicity in each pixel are saved.
+    quiet:         : Do you want to silence output regarding progress? Default: True
 
     """
 
@@ -125,7 +126,8 @@ class MockObservation(object):
             "noise": None,
             "outmas": True,
             "outage": False,
-            "outmet": False
+            "outmet": False,
+            "quiet": True
         }
 
         # If args is not provided, use the default values
@@ -140,9 +142,30 @@ class MockObservation(object):
         self.coords = coords
         self.snapname = os.path.basename(self.sim_file).replace('.hdf5', '') if ".hdf5" in os.path.basename(self.sim_file) else os.path.basename(self.sim_file)
         self.simd = load_data(self.sim_file, snapshot=True, center=self.coords[:3], radius=self.coords[-1])
+        if not self.params["quiet"]:
+            print("Snapshot file successfully read:", self.sim_file)
        
         # Initialize magnitudes as None since they have not yet been computed
         self.mag = None
+        self.stored_params = None # For tracking changes in parameters
+
+
+    def params_changed(self):
+      
+        # Check if any relevant parameters have changed since the last magnitude computation.
+        if self.stored_params is None:
+            return True
+        
+        relevant_keys = ["out_val", "mag_type", "filters", "dustf", "rest_frame", "noise"]
+
+        # If observer's frame is chosen, we need to recompute magnitudes with the redshifted SEDs
+        if not self.params["rest_frame"]:
+            relevant_keys.append("z_obs")
+
+        for key in relevant_keys:
+            if self.params[key] != self.stored_params[key]:
+                return True
+        return False
 
 
     def get_mags(self):
@@ -153,6 +176,7 @@ class MockObservation(object):
         z_obs = self.params["z_obs"]
 
         # Prepare the SSP model and filters
+        self.params["model"].quiet = self.params["quiet"]   # Suppress print statements if the user wishes
         sspmod = self.params["model"] # Initialize
         filters_list = filters(f_name=self.params["filters"])
 
@@ -164,15 +188,31 @@ class MockObservation(object):
         self.mag = mag
         self.sspmod = sspmod
         self.noise_dict = filters_list.noises
+        self.stored_params = self.params.copy()  # Store the current configuration
 
+    def project_worker(self, proj_direc, output_dir, lsmooth=None):
+        if not self.params["quiet"]:
+            print("Projecting to:", proj_direc)
+        pj = projection(self.mag, self.simd, npx=self.params["npx"], unit=self.params["out_val"], AR=self.params["AR"], redshift=self.params["z_obs"], p_thick=self.params["p_thick"],
+                           axis=proj_direc, mag_type=self.params["mag_type"], ksmooth=self.params["ksmooth"], lsmooth=lsmooth, noise=self.noise_dict, outmas=self.params["outmas"], 
+                           outage=self.params["outage"], outmet=self.params["outmet"])
+ 
+
+        if isinstance(proj_direc, np.ndarray):
+            proj_direc = f"({';'.join(map(str, proj_direc))})"
+        if isinstance(proj_direc, list):
+            proj_direc = f"({'°,'.join(map(str, proj_direc))}°)"
+
+        output_path = os.path.join(output_dir, f"{self.snapname}-{proj_direc}.fits")
+        pj.write_fits_image(output_path, overwrite=True)
 
     def project(self, output_dir):
         """
         Project the simulation data and save the output to the given directory.
         Before projecting, ensure the prep is done.
         """
-        # Prepare the output if not done yet
-        if self.mag is None:
+        # Check if magnitudes need to be recomputed
+        if self.mag is None or self.params_changed():
             self.get_mags()
   
         lsmooth=None
@@ -193,15 +233,11 @@ class MockObservation(object):
  
         if not projections:
             raise ValueError("Please provide projection vectors or set num_random_proj.")
+ 
+        worker_args = [(proj_direc, output_dir, lsmooth) for proj_direc in proj_vecs]
+
+        # Use multiprocessing to parallelize the project_worker calls
+        with Pool(self.params["ncpu"]) as pool:
+            pool.starmap(self.project_worker, worker_args)
         for proj_direc in projections:
-            pj = projection(self.mag, self.simd, npx=self.params["npx"], unit=self.params["out_val"], AR=self.params["AR"], redshift=self.params["z_obs"], p_thick=self.params["p_thick"],
-                            axis=proj_direc, mag_type=self.params["mag_type"], ksmooth=self.params["ksmooth"], lsmooth=lsmooth, noise=self.noise_dict, outmas=self.params["outmas"],
-                            outage=self.params["outage"], outmet=self.params["outmet"])
-
-            if isinstance(proj_direc, np.ndarray):
-                proj_direc = f"({';'.join(map(str, proj_direc))})"
-            if isinstance(proj_direc, list):
-                proj_direc = f"({'°,'.join(map(str, proj_direc))}°)"
-
-            output_path = os.path.join(output_dir, f"{self.snapname}-{proj_direc}.fits")
-            pj.write_fits_image(output_path, overwrite=True)
+            self.project_worker(proj_direc, output_dir, lsmooth=lsmooth)
