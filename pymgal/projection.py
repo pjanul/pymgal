@@ -112,9 +112,9 @@ class projection(object):
                 If None, redshift from simulation data will be used.
                 This will be moved to 0.05 if simulation redshift is used and equal to 0.
                 Note this redshift does not change anything of the simulation physical particle positions, only shift the object to this redshift for observing.
-    zthick  : The thickness in projection direction. Default: None.
+    p_thick  : The thickness in projection direction. Default: None.
                 If None, use all data from cutting region. Otherwise set a value in simulation
-                length unit (kpc/h normally), then a slice of data [center-zthick, center+zthick]
+                length unit (kpc/h normally), then a slice of data [center-p_thick, center+p_thick]
                 will be used to make the y-map.
     SP      : Faked sky positions in [RA (longitude), DEC (latitude)] in degrees.
                 Default: None, calculate automatically based on 3D position.  
@@ -148,7 +148,7 @@ class projection(object):
     Pdata.write_fits_image("filename.fits")
     """
 
-    def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, zthick=None,
+    def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, p_thick=None,
                  SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=5, noise=0, outmas=False, outage=False, outmet=False):
 
         self.axis = axis
@@ -178,9 +178,9 @@ class projection(object):
         if g_soft is not None and g_soft <= 0:
             raise ValueError("g_soft should be strictly greater than zero")
         self.lsmooth = lsmooth
-        self.zthick = zthick
-        if zthick is not None:
-            self.zthick /= (simd.cosmology.h / (1.+ simd.redshift))
+        self.p_thick = p_thick
+        if p_thick is not None:
+            self.p_thick /= (simd.cosmology.h / (1.+ simd.redshift))
         self.outd = {}
 
         self._prep_out(data, simd)
@@ -236,8 +236,8 @@ class projection(object):
             raise ValueError(
                 "Do not accept this value %s for projection" % self.axis)
         lsmooth = self.lsmooth
-        if self.zthick is not None:
-            ids = (pos[:, 2] > -self.zthick) & (pos[:, 2] < self.zthick)
+        if self.p_thick is not None:
+            ids = (pos[:, 2] > -self.p_thick) & (pos[:, 2] < self.p_thick)
             old_pos_size = len(pos) # keep track of the number of particles we had before we cut the z thick 
             pos = pos[ids]
             lsmooth = lsmooth[ids] if lsmooth is not None else None
@@ -447,8 +447,8 @@ class projection(object):
             hdu.header.comments["PSIZE"] = 'The pixel size in physical at simulation time'
             hdu.header["AGLRES"] = float(self.ar*3600.)
             hdu.header.comments["AGLRES"] = '\'observation\' angular resolution in arcsec'
-            hdu.header["ZTHICK"] = float(self.zthick) if self.zthick is not None else 'None'
-            hdu.header.comments["ZTHICK"] = 'The thickness of the projection (kpc)'
+            hdu.header["P_THICK"] = float(self.p_thick) if self.p_thick is not None else 'None'
+            hdu.header.comments["P_THICK"] = 'The thickness of the projection (kpc)'
             hdu.header["ORIGIN"] = 'PyMGal'
             hdu.header.comments["ORIGIN"] = 'Software for generating this mock image'
             hdu.header["VERSION"] = __version__.__version__
