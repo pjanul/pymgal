@@ -9,7 +9,7 @@ import astropy.io.fits as pyfits
 class SSP_models(object):
     r""" Load simple stellar population models.
     model = SSP_model(model_file, IMF="chab", metal=[list], is_ised=False, is_fits=False,
-    is_ascii=False, has_masses=False, units='a', age_units='gyrs', nsample=None)
+    is_ascii=False, has_masses=False, units='a', age_units='gyrs', nsample=None, quiet=True)
 
     Parameters
     ----------
@@ -31,7 +31,6 @@ class SSP_models(object):
     units      : The units of wavelength. Default: 'a'
     age_units  : The units of age. Default: 'gyrs'
                 Note, this is the age units in the model file. It is changed into yrs in side the code.
-
     nsample    : The frequency sample points. Default: None, uses the model
                  frequences. Otherwise, the interpolated frequency will be used.
                  For the popurse of reducing required memory.
@@ -40,6 +39,7 @@ class SSP_models(object):
                  If list, or numpy array, it will be directly interpolated with
                  the model frequency.
                  Note, must be consistent with the units.
+    quiet      : Do you want to silence print statements regarding the progress? Default: True
 
     Returns
     -------
@@ -73,7 +73,7 @@ class SSP_models(object):
 
     def __init__(self, model_file='', IMF="chab", metal=[], is_ised=False,
                  is_fits=False, is_ascii=False, has_masses=False, units='a',
-                 age_units='gyrs', nsample=None):
+                 age_units='gyrs', nsample=None, quiet=True):
         self.nmets = len(metal)
         if self.nmets == 0:
             self.metals = np.array([])
@@ -104,7 +104,8 @@ class SSP_models(object):
         self.masses = {}
         self.sft = {}
         self.defined_freq = nsample
-
+    
+        self.quiet = quiet
         self.model_dir = False
         if 'SSP_models' in os.environ:
             self.model_dir = os.environ['SSP_models']
@@ -205,7 +206,8 @@ class SSP_models(object):
         if len(files) != 0:
             for check in files:
                 if os.path.isfile(check):
-                    print("Searching SSP model files, found: %s" % check)
+                    if not self.quiet:
+                        print("Searching SSP model files, found: %s" % check)
                 else:
                     print("There is something wrong with this model file: %s", check)
                     print("!! This may cause problems in reading !!")
@@ -364,7 +366,8 @@ class SSP_models(object):
             mids = np.int32(np.round(mids))
 
         for i, metmodel in enumerate(self.met_name):
-            print('Interpolating metallicity Z =', metmodel)
+            if not self.quiet:
+                print('Interpolating metallicity Z =', metmodel)
             #start_time = time.time()
             if self.nmets > 1:
                 ids = np.where(mids == i)[0]
@@ -374,7 +377,8 @@ class SSP_models(object):
             if ids.size > 1:
                 Ns = np.int32(ids.size)
             else:
-                print(f"# WARNING: Found {ids.size} particles at this metallicity, which is smaller than the number of CPUs.")
+                if not self.quiet:
+                    print(f"# WARNING: Found {ids.size} particles at this metallicity, which is smaller than the number of CPUs.")
                 Ns = 1  # more cpu than particles
             Lst = np.arange(0, ids.size, Ns)
             Lst = np.append(Lst, ids.size)
@@ -403,5 +407,6 @@ class SSP_models(object):
         # Output SEDs in units of spectral flux density Fv (erg/s/cm^2/Hz) just like the equation from the original EzGal paper (https://arxiv.org/abs/1205.0009) 
         seds /= self.vs[self.met_name[0]].reshape(self.nvs[0], 1)
         
-
+        if not self.quiet: 
+            print("Interpolation for the SEDs are done.")
         return vs, seds
