@@ -3,48 +3,86 @@
 
 ## What is this repository for?
 
-* PyMGal (pronounced py-em-gal) is a package that uses simple stellar synthesis models to generate observed galaxies from hydrodynamical simulations.
+* PyMGal is a package that uses simple stellar synthesis models to generate observed galaxies from hydrodynamical simulations.
 
-## How do I get set up?
+Installation
+==================
 
-* Begin by downloading/cloning PyMGal onto your own device and placing it in your directory of choice. After downloading, you will need to install the necessary dependencies before you can run the code.
-
-#### Dependencies 
-
-* To install the necessary dependencies, simply enter your/path/to/pymgal (i.e. the outer PyMGal directory) and run the following at the command line.
-
-    * `pip install -r requirements.txt`
+This guide will walk you through the necessary prerequisites, installation steps, and how to run the code for PyMGal.
 
 
-#### The config.yaml file
+Installing stable version
+-------------
+We are working on registering PyMGal with the Python Package Index (PyPI). Once this is done, PyMGal will be installable with pip. Until then, please install the developer version.
 
-* The config.yaml file contains modifiable parameters including the coordinates of your projection region, filters, SSP models, and many more. Open it and take a look. You can play around with these parameters, but as long as you have valid coordinates, the other default values should be enough to get you started. The file can be found at your/path/to/pymgal/pymgal/config.yaml (i.e. the inner PyMGal directory). 
+Installing developer version
+-------------
+To install the latest version, you can clone the repository with git. 
 
-* The full list of filters and SSP models can be found in the pymgal/filters and pymgal/models directories, respectively. 
+  * git clone https://bitbucket.org/pjanul/pymgal
+  
+Prerequisites
+-------------
+
+To install the necessary dependencies, simply enter your/path/to/pymgal (i.e. the outer PyMGal directory) and run the following at the command line.
+
+  * pip install -r requirements.txt
+  
+ 
+Usage
+-------------
+
+In most cases, the only API needed for PyMGal is the MockObservation object. MockObservation objects require two mandatory parameters: the path to your snapshot file and the coordimates + radius of the region you want to consider. If you don't know the coordinates of your object, you'll probably need to obtain some catalogue data.
+
+Once you initialize the object, you can calculate magnitudes of particles in your preferred output unit using the get_mags() function. You can also save projection files using the project() function. If you call project() before calling get_mags(), the magnitudes will automatically be calculated.
+
+Here is a sample to get you started. If all goes well, you should see at least one newly formed snap_{XYZ}-{proj_angle}-{filter}.fits file in your output directory.
+
+.. code-block:: python
+
+   from pymgal import MockObservation
+
+   obs = MockObservation("/path/to/snapshot", [x_c, y_c, z_c, r])   
+   obs.params["out_val"] = "luminosity"
+   obs.get_mags()
+   obs.project("/path/to/output")
 
 
-## How do I run the code?
+Modifiable parameters
+-------------
 
-* Once everything is set up, you can begin generating mock observations. To do so, enter the inner PyMGal directory /your/path/to/pymgal/pymgal and run the following at command line.
-
-    *  **`python generate_mocks.py <snapshot_file> <config_file> <output_dir>`**
-
+There are many different parameters you can modify for your magnitude calculations and your projections. Here is a list of them. For more information, see the :ref:`Parameters <parameters>` page.
 
 
-* You can also pass optional command line arguments to temporarily overrule the config file. To get more information about command line arguments, you can run the following. <br>
+.. code-block:: python
 
-    * **`python generate_mocks.py --help`**
-    
-
-#### Input:
-
-* The path to your snapshot simulation file. Can be any flavour or Gadget or GIZMO. Can be formatted snap_XYZ or snap_XYZ.hdf5. 
-* The path to your config.yaml file. You can use the built-in config.yaml file, or you can specify a different path and use that one. 
-* The directory where you'd like to output your files.
-
-#### Output:
-* One FITS file for each selected projection angle and filter. File names will be formatted snap_{XYZ}-{proj_angle}-{filter}.fits. 
-
+   class MockObservation(object):
+       def __init__(self, sim_file, coords, args=None):
+           # Default parameter values
+           defaults = {
+               "model": "bc03",
+               "imf": "chab",
+               "dustf": None,
+               "custom_model": None,
+               "filters": ["sdss_r"],
+               "out_val": "flux",
+               "mag_type": "AB",
+               "proj_vecs": "z",
+               "proj_angs": None,
+               "proj_rand": 0,
+               "rest_frame": True,
+               "AR": 1.2,
+               "npx": 512,
+               "z_obs": 0.1,
+               "ksmooth": 100,
+               "g_soft": None,
+               "thickness": None,
+               "ncpu": 16,
+               "noise": None,
+               "outmas": True,
+               "outage": False,
+               "outmet": False
+           }
 ## What if I don't know the coordinates for my projections?
 
 * In this case, you'll probably need halo catalogue data. Halo catalogues come in many formats including AHF (Amiga Halo Finder), FoF (Friends of Friends), Rockstar, and more. These catalogues will contain information regarding the physical positions and merger history of the particles in your simulation. You'll need to use these catalogues to obtain the physical coordinates of whatever object you'd like to project.
