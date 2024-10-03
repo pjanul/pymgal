@@ -25,7 +25,7 @@ To install the necessary dependencies, simply enter your/path/to/pymgal (i.e. th
 Usage
 -------------
 
-In most cases, the only API needed for PyMGal is the MockObservation object. MockObservation objects require two mandatory parameters: the path to your snapshot file and the coordimates + radius of the region you want to consider. 
+In most cases, the only API needed for PyMGal is the MockObservation object. MockObservation objects require two mandatory parameters: the path to your snapshot file and the coordimates + radius of the region you want to consider. If you don't know the coordinates of your object, you'll probably need to obtain some catalogue data.
 
 Once you initialize the object, you can calculate magnitudes of particles in your preferred output unit using the get_mags() function. You can also save projection files using the project() function. If you call project() before calling get_mags(), the magnitudes will automatically be calculated.
 
