@@ -82,9 +82,9 @@ class MockObservation(object):
                         If None, redshift from simulation data will be used.
                         This will be moved to 0.05 if simulation redshift is used and equal to 0.
                         Note this redshift does not change anything of the simulation physical particle positions, only shift the object to this redshift for observing.
-    thickness     : The thickness in projection direction. Default: None.
+    p_thick     : The thickness in projection direction. Default: None.
                         If None, use all data from cutting region. Otherwise set a value in simulation
-                        length unit (kpc/h normally), then a slice of data [center-zthick, center+zthick]
+                        length unit (kpc/h normally), then a slice of data [center-p_thick, center+p_thick]
                         will be used to make the y-map.
     ksmooth        : An integer representing the k in kNN Gaussian smoothing. 1 sigma for the Gaussian is set to the distance to the kth neighbour in 3D space.
                         If k>0, you set the smoothing length of a particle to be the distance between the particle and its kth nearest neighbour.
@@ -106,10 +106,8 @@ class MockObservation(object):
     def __init__(self, sim_file, coords, args=None):
         # Default parameter values
         defaults = {
-            "model": "bc03",
-            "imf": "chab",
+            "model": SSP_models('bc03', IMF='chab', has_masses=True),
             "dustf": None,
-            "custom_model": None,
             "filters": ["sdss_r"],
             "out_val": "flux",
             "mag_type": "AB",
@@ -122,7 +120,7 @@ class MockObservation(object):
             "z_obs": 0.1,
             "ksmooth": 100,
             "g_soft": None,
-            "thickness": None,
+            "p_thick": None,
             "ncpu": 16,
             "noise": None,
             "outmas": True,
@@ -140,9 +138,10 @@ class MockObservation(object):
         # Assign essential attributes
         self.sim_file = sim_file
         self.coords = coords
-
-        # Prep output is initially not prepared
-        #self.prep_done = False
+        self.snapname = os.path.basename(self.sim_file).replace('.hdf5', '') if ".hdf5" in os.path.basename(self.sim_file) else os.path.basename(self.sim_file)
+        self.simd = load_data(self.sim_file, snapshot=True, center=self.coords[:3], radius=self.coords[-1])
+       
+        # Initialize magnitudes as None since they have not yet been computed
         self.mag = None
 
 
@@ -150,37 +149,22 @@ class MockObservation(object):
         """
         Prepare the data needed for projections, based on the initialized parameters.
         """
-        model = self.params["model"]
-        imf = self.params["imf"]
         dustf = self.params["dustf"]
         z_obs = self.params["z_obs"]
 
         # Prepare the SSP model and filters
-        sspmod = None # Initialize
-        if self.params["custom_model"] is None:
-            sspmod = SSP_models(model, IMF=imf, has_masses=True)
-        else: 
-            sspmod = self.params["custom_model"]
-
+        sspmod = self.params["model"] # Initialize
         filters_list = filters(f_name=self.params["filters"])
-
-        # Process the snapshot data
-        snapname = os.path.basename(self.sim_file).replace('.hdf5', '') if ".hdf5" in os.path.basename(self.sim_file) else os.path.basename(self.sim_file)
-        simd = load_data(self.sim_file, snapshot=True, center=self.coords[:3], radius=self.coords[-1])
 
         # Compute magnitudes
         is_vega = self.params["mag_type"].lower().startswith('vega')
-        mag = filters_list.calc_energy(sspmod, simd, dust_func=dustf, vega=is_vega, unit=self.params["out_val"], rest_frame=self.params["rest_frame"], noise=self.params["noise"], redshift=z_obs)
-
+        mag = filters_list.calc_energy(sspmod, self.simd, dust_func=dustf, vega=is_vega, unit=self.params["out_val"], rest_frame=self.params["rest_frame"], noise=self.params["noise"], redshift=z_obs)
 
         # Store the precomputed attributes
         self.mag = mag
-        self.simd = simd
         self.sspmod = sspmod
-        self.snapname = snapname
         self.noise_dict = filters_list.noises
-        # Mark prep as done
-        #self.prep_done = True
+
 
     def project(self, output_dir):
         """
@@ -210,7 +194,7 @@ class MockObservation(object):
         if not projections:
             raise ValueError("Please provide projection vectors or set num_random_proj.")
         for proj_direc in projections:
-            pj = projection(self.mag, self.simd, npx=self.params["npx"], unit=self.params["out_val"], AR=self.params["AR"], redshift=self.params["z_obs"], zthick=self.params["thickness"],
+            pj = projection(self.mag, self.simd, npx=self.params["npx"], unit=self.params["out_val"], AR=self.params["AR"], redshift=self.params["z_obs"], p_thick=self.params["p_thick"],
                             axis=proj_direc, mag_type=self.params["mag_type"], ksmooth=self.params["ksmooth"], lsmooth=lsmooth, noise=self.noise_dict, outmas=self.params["outmas"],
                             outage=self.params["outage"], outmet=self.params["outmet"])
 
@@ -221,4 +205,3 @@ class MockObservation(object):
 
             output_path = os.path.join(output_dir, f"{self.snapname}-{proj_direc}.fits")
             pj.write_fits_image(output_path, overwrite=True)
-
