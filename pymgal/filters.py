@@ -304,8 +304,6 @@ class filters(object):
 
         vsn = np.asarray(vsn, dtype='<f8')
         sedn = np.asarray(sedn, dtype='<f8')
-        #interp1 = interp1d(vsn, sedn, axis=0, bounds_error=False, fill_value="extrapolate")
-        print("Interpolation for the SEDs are done.")
         interp = utils.numba_interp1d(vsn, sedn.T)
         #end_time = time.time()
         #print("filters_time: ", end_time - start_time)
