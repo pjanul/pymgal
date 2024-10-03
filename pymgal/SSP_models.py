@@ -364,7 +364,7 @@ class SSP_models(object):
             mids = np.int32(np.round(mids))
 
         for i, metmodel in enumerate(self.met_name):
-            print('Interpolating: ', metmodel)
+            print('Interpolating metallicity Z =', metmodel)
             #start_time = time.time()
             if self.nmets > 1:
                 ids = np.where(mids == i)[0]
@@ -374,7 +374,7 @@ class SSP_models(object):
             if ids.size > 1:
                 Ns = np.int32(ids.size)
             else:
-                print(f"# WARNING: Found {ids.size} particles, which is smaller than the number of CPUs.")
+                print(f"# WARNING: Found {ids.size} particles at this metallicity, which is smaller than the number of CPUs.")
                 Ns = 1  # more cpu than particles
             Lst = np.arange(0, ids.size, Ns)
             Lst = np.append(Lst, ids.size)
