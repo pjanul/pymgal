@@ -1,19 +1,18 @@
 # README
 
 
-## What is this repository for?
+What is this repository for?
+=============
 
 * PyMGal is a package that uses simple stellar synthesis models to generate observed galaxies from hydrodynamical simulations.
 
-Installation
-==================
+Documentation
+=============
 
-This guide will walk you through the necessary prerequisites, installation steps, and how to run the code for PyMGal.
+If you want a more detailed explanation of PyMGal than can be provided in a short readme file, see the documentation at [https://pymgal.readthedocs.io](https://pymgal.readthedocs.io).
 
-
-Installing stable version
--------------
-We are working on registering PyMGal with the Python Package Index (PyPI). Once this is done, PyMGal will be installable with pip. Until then, please install the developer version.
+Installation 
+============
 
 Installing developer version
 -------------
@@ -30,7 +29,7 @@ To install the necessary dependencies, simply enter your/path/to/pymgal (i.e. th
   
  
 Usage
--------------
+============
 
 In most cases, the only API needed for PyMGal is the MockObservation object. MockObservation objects require two mandatory parameters: the path to your snapshot file and the coordimates + radius of the region you want to consider. If you don't know the coordinates of your object, you'll probably need to obtain some catalogue data.
 
@@ -85,18 +84,20 @@ class MockObservation(object):
         }
 ```
 
-## What if I don't know the coordinates for my projections?
+What if I don't know the coordinates for my projections?
+----------
 
 * In this case, you'll probably need halo catalogue data. Halo catalogues come in many formats including AHF (Amiga Halo Finder), FoF (Friends of Friends), Rockstar, and more. These catalogues will contain information regarding the physical positions and merger history of the particles in your simulation. You'll need to use these catalogues to obtain the physical coordinates of whatever object you'd like to project.
 
 * ** Note: If you're working with data from The Three Hundred Project, we've included a script called pymgal/doc/the300_helper.py which helps you get positions from AHF halos. Open it and read the comments at the top for instructions. **
 
-## Who do I talk to?
+Who do I talk to?
+-----------
 
 *   Please report any issue to Weiguang Cui (cuiweiguang@gmail.com) or Patrick Janulewicz (patrick.janulewicz@gmail.com).
 *   Or report a bug through issues.
 
-## Acknowledgement
-
+Acknowledgement
+----------
 *  This package borrowed a lot things from ezgal (<http://www.baryons.org/ezgal/>). Please make your acknowledgement to their work when you use this package.
 
