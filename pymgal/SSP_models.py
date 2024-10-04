@@ -9,7 +9,7 @@ import astropy.io.fits as pyfits
 class SSP_models(object):
     r""" Load simple stellar population models.
     model = SSP_model(model_file, IMF="chab", metal=[list], is_ised=False, is_fits=False,
-    is_ascii=False, has_masses=False, units='a', age_units='gyrs', nsample=None, quiet=True)
+    is_ascii=False, has_masses=False, units='a', age_units='gyrs', nsample=None, quiet=True, model_dir=None)
 
     Parameters
     ----------
@@ -40,6 +40,8 @@ class SSP_models(object):
                  the model frequency.
                  Note, must be consistent with the units.
     quiet      : Do you want to silence print statements regarding the progress? Default: True
+    model_dir  : An optional path to a directory containing your models. Default: None
+                 If specified, the program will look for models in this directory instead of the default one.
 
     Returns
     -------
