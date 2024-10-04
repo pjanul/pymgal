@@ -1,7 +1,10 @@
-| Many of the filters below are based off the list from python-FSPS (https://python-fsps.readthedocs.io/en/latest/filters/). 
+
+
+| You can create observations using any of the filters below. Many of the filters below are based off the list from python-FSPS (https://python-fsps.readthedocs.io/en/latest/filters/). 
 
 
 .. _filters:
+
 Filters
 ============
 
