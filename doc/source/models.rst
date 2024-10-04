@@ -1,5 +1,5 @@
 .. _ssp_models:
-Models and outputs
+Model selection
 ==========
 
 .. _ssp_models_object:
