@@ -73,7 +73,7 @@ class SSP_models(object):
 
     def __init__(self, model_file='', IMF="chab", metal=[], is_ised=False,
                  is_fits=False, is_ascii=False, has_masses=False, units='a',
-                 age_units='gyrs', nsample=None, quiet=True):
+                 age_units='gyrs', nsample=None, quiet=True, model_dir=None):
         self.nmets = len(metal)
         if self.nmets == 0:
             self.metals = np.array([])
@@ -106,17 +106,16 @@ class SSP_models(object):
         self.defined_freq = nsample
     
         self.quiet = quiet
-        self.model_dir = False
+        self.model_dir = model_dir
         if 'SSP_models' in os.environ:
             self.model_dir = os.environ['SSP_models']
         elif 'SSP_MODELS' in os.environ:
             self.model_dir = os.environ['SSP_MODELS']
-        else:
-            self.model_dir = os.path.dirname(
-                os.path.realpath(__file__)) + '/models/'
+        elif self.model_dir is None: 
+            self.model_dir = os.path.dirname(os.path.realpath(__file__)) + '/models/'
             # save path to data folder: module directory/data
-
-        if self.model_dir and (self.model_dir[-1] != os.sep):
+        
+        if self.model_dir is not None and (self.model_dir[-1] != os.sep):
             self.model_dir += os.sep
 
         # load model
@@ -188,9 +187,9 @@ class SSP_models(object):
         # first check file path
         files = []
         metals = []
-
         for filen in os.listdir(self.model_dir):
-            if (filen[:len(file)] == file) and (filen[-10:-6] == IMF):
+            curr_imf = filen.split(".")[-2][-4:]  # Get the current IMF name by taking the last four characters before the file extension
+            if (filen[:len(file)] == file) and (curr_imf == IMF):
                 filemet = np.float64(filen.split("_")[-2])
                 if self.nmets == 0:
                     files.append('%s%s' % (self.model_dir, filen))
