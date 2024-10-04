@@ -25,7 +25,7 @@ Here is a sample to get you started. If all goes well, you should see at least o
    obs.project("/path/to/output")
 
 
-Modifiable parameters
+List of parameters
 -------------
 
 There are many different parameters you can modify for your magnitude calculations and your projections. You can find the full list below. 
@@ -60,8 +60,8 @@ There are many different parameters you can modify for your magnitude calculatio
                "quiet": False
            }
 
-Parameters
-==========
+Description of parameters
+-----------
 
 This document describes the various parameters used in PyMGal for generating optical mock observations. Each parameter plays a specific role in defining the characteristics of the simulation, projection, and output.
 
