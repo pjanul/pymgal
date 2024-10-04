@@ -26,9 +26,9 @@ User Guide
    :maxdepth: 2
 
    installation
+   usage
    models
    filters
-   parameters
 
 Authors
 =======
@@ -43,7 +43,11 @@ License
 .. toctree::
    :maxdepth: 1
    :caption: License:
+   
+*Copyright 2013-2023 PyMGal developers.*
 
-An accompanying paper is in the works for this repository. We will update this page with a citation once it is ready.
+This code is available under the MIT License.
+
+PyMGal is An accompanying paper is in the works for this repository. We will update this page with a citation once it is ready.
 PyMGal borrows a lot from EzGal (http://www.baryons.org/ezgal/), so please cite them if you use this package. 
 
