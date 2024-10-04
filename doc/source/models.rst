@@ -34,7 +34,7 @@ The code below shows the full list of options for the SSP_models class, as well 
    
    print(SSP_models.__doc__)
 
-The most important are the model_file and the IMF. If you want to only look at some metallicities, specify them with the metal parameter. If you want to specify your own model in a .txt file, make sure to set is_ascii=True. You may also want to specify your own custom model directory by setting model_dir="/path/to/your/models"
+The most important are the model_file and the initial mass function (IMF). If you want to only look at some metallicities, specify them with the metal parameter. If you want to specify your own model in a .txt file, make sure to set is_ascii=True. You may also want to specify your own custom model directory by setting model_dir="/path/to/your/models"
 
 
 .. _avail_models:
@@ -44,6 +44,7 @@ Available models
 
 PyMGal supports various model types from different works. Below is a list of models that were created as a result of the EzGal package. They are BC03 from  Bruzual & Chalot (2003), M05 from Maraston (2005), CB07 from Charlot & Bruzual (2007), BaSTI from Percival et al. (2009), C09 from Conroy et al. (2009) and P2 for the PEGASE2 set from Fioc & Rocca-Volmerange (1997). 
 
+In addition to simple stellar population (SSP) models, complex stellar population models (CSP) with more complex star formation history are also supported. These can include exponentially decaying formation, constant formation, or a constant burst in formation.
 
 For more details on these, consult the EzGal paper. If you'd like to download EzGal models, you can access them here: http://www.baryons.org/ezgal/download.php. Make sure to cite the EzGal authors and model authors.
 
