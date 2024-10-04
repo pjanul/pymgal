@@ -76,14 +76,25 @@ Available dust functions:
 Output units
 ----------
 
-Output units:
- * Luminosity (erg/s)
- * Flux (erg/s/cm^2)
- * Spectral flux density
-    * F_nu (erg/s/cm^2/Hz)
-    * F_lambda (erg/s/cm^2/Angstrom)
-    * Jansky 
- * Magnitude (either absolute or apparent)
-    * AB
-    * Solar
-    * Vega
+PyMGal can output projections in a variety of units. Below is a table containing the full list of units.
+
+.. table:: Available output units. Note that magnitudes in any system can be set to either absolute or apparent.
+
+   ======== =============================== ==========
+   Category Units                            Symbol
+   ======== =============================== ==========
+   Luminosity                                -
+            erg/s                            -
+            L\ :sub:`sun`                    -
+   -------- -------------------------------- ----------
+   Flux/Flux Density                         -
+            erg/s/cm\ :sup:`2`               F
+            erg/s/cm\ :sup:`2`/Hz            F\ :sub:`ν`
+            erg/s/cm\ :sup:`2`/Å             F\ :sub:`λ`
+            Jansky                           Jy
+   -------- -------------------------------- ----------
+   Magnitude                                 -
+            AB                               -
+            Vega                             -
+            Solar                            -
+   ======== =============================== ==========
