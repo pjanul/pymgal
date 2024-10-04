@@ -38,63 +38,55 @@ The most important are the model_file and the IMF. If you want to only look at s
 
 
 .. _avail_models:
+
 Available models
 ----------
-Here These models are used to simulate the spectral energy distribution (SED) of stellar populations in galaxies. You can choose the a model based on your scientific goals, or simply use the default model.
 
-Available SSP Models:
- * BC03 from  Bruzual & Chalot (2003)
- * M05 from Maraston (2005)
- * CB07 from Charlot & Bruzual (2007)
- * BaSTI from Percival et al. (2009)
- * C09 from Conroy et al. (2009)
- 
-.. _imf:
-Initial Mass Functions
-----------
+PyMGal supports various model types from different works. Below is a list of models that were created as a result of the EzGal package. They are BC03 from  Bruzual & Chalot (2003), M05 from Maraston (2005), CB07 from Charlot & Bruzual (2007), BaSTI from Percival et al. (2009), C09 from Conroy et al. (2009) and P2 for the PEGASE2 set from Fioc & Rocca-Volmerange (1997). 
 
-Note that not all models support all three IMFs.
 
-Available IMFs:
- * Chabrier 
- * Kroupa
- * Salpeter
+For more details on these, consult the EzGal paper. If you'd like to download EzGal models, you can access them here: http://www.baryons.org/ezgal/download.php. Make sure to cite the EzGal authors and model authors.
+
+.. list-table::
+   :widths: 10 15 10
+   :header-rows: 1
+
+   * - Category
+     - Available IMFs
+     - Available CSPs
+   * - P09
+     - Kroupa
+     - 
+   * - BC03
+     - Chabrier, Salpeter
+     - Burst, constant, exponential
+   * - Binary ised BC03 
+     - Chabrier, Salpeter
+     - 
+   * - C09
+     - Chabrier, Kroupa, Salpeter
+     - Exponential
+   * - CB07
+     - Chabrier, Salpeter
+     - Burst, constant, exponential
+   * - M05
+     - Kroupa, Salpeter
+     - Exponential
+   * - P2
+     - Salpeter
+     - 
+
+
  
   
 .. _dust_funcs:
+
 Dust attentuation functions
 ----------
 
-Available dust functions:
- * None
- * Charlot and Fall (2000)
- * Calzetti et al. (2000)
+By default, PyMGal doesn't account for dust attenuation. If you want to add the effect of dust, you can use either the dust function described in Charlot and Fall (2000) or Calzetti et al. (2000). 
+
+If you want to code your own dust function, you should be able to add it to the dusts.py file and then call it when creating your MockObservation object.
  
  
    
-.. _out_vals:
-Output units
-----------
-
-PyMGal can output projections in a variety of units. Below is a table containing the full list of units.
-
-.. table:: Available output units. Note that magnitudes in any system can be set to either absolute or apparent.
-
-   ======== =============================== ==========
-   Category Units                            Symbol
-   ======== =============================== ==========
-   Luminosity                                -
-            erg/s                            -
-            L\ :sub:`sun`                    -
-   -------- -------------------------------- ----------
-   Flux/Flux Density                         -
-            erg/s/cm\ :sup:`2`               F
-            erg/s/cm\ :sup:`2`/Hz            F\ :sub:`ν`
-            erg/s/cm\ :sup:`2`/Å             F\ :sub:`λ`
-            Jansky                           Jy
-   -------- -------------------------------- ----------
-   Magnitude                                 -
-            AB                               -
-            Vega                             -
-            Solar                            -
-   ======== =============================== ==========
