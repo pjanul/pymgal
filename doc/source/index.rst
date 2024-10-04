@@ -44,7 +44,7 @@ License
    :maxdepth: 1
    :caption: License:
    
-*Copyright 2013-2023 PyMGal developers.*
+*Copyright 2024 PyMGal developers.*
 
 This code is available under the MIT License.
 
