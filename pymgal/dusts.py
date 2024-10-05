@@ -1,5 +1,21 @@
 import numpy as np
 from pymgal import utils
+from numba import njit
+import time
+
+
+
+# Speed up dust attenuation with numba since charlot_fall can be slow otherwise
+@njit(parallel=True)
+def charlot_fall_numba(ts1, ls1, tau1, tau2, tbreak):
+    ls1 = np.reshape(ls1, (ls1.size, 1))
+    ts1 = np.reshape(ts1, (1, ts1.size))
+
+    taus = np.full(ts1.size, tau1)
+    m = ts1.ravel() > tbreak
+    if m.any():
+        taus[m] = tau2
+    return np.exp(-1.0 * taus * (ls1 / 5500.0) ** -0.7)
 
 
 class charlot_fall(object):
@@ -21,20 +37,31 @@ class charlot_fall(object):
         self.tau2 = tau2
         self.tbreak = tbreak
 
+
     def __call__(self, ts, ls):
-        ls1 = np.copy(ls)
         ts1 = np.copy(ts)
-        ls1 = np.asarray(ls1)
-        ts1 = np.asarray(ts1)
-        ls1.shape = (ls1.size, 1)
-        ts1.shape = (1, ts1.size)
+        ls1 = np.copy(ls) 
+        dust = charlot_fall_numba(ts1, ls1, self.tau1, self.tau2, self.tbreak)        
+        return dust
 
-        taus = np.asarray([self.tau1] * ts1.size)
-        m = (ts1 > self.tbreak).ravel()
-        if m.sum():
-            taus[m] = self.tau2
 
-        return np.exp(-1.0 * taus * (ls1 / 5500.0)**-0.7)
+
+# Calzetti seems to run faster without numba, but here is the implementation just in case
+@njit(parallel=True)
+def numba_calzetti(ls, esbv, rv):
+    ks = np.zeros(ls.size)
+    s = ls < .63
+    if s.any():
+        ks[s] = 2.659 * (-2.156 + 1.509 / ls[s] - 0.198 / ls[s]**2.0 +
+                         0.011 / ls[s]**3.0) + rv
+    l = ~s
+    if l.any(): ks[l] = 2.659 * (-1.857 + 1.040 / ls[l]) + rv
+
+    # calculate dimming factor as a function of lambda
+    factors = 10.0**(-0.4 * esbv * ks)
+    return factors
+
+
 
 class calzetti(object):
     """ callable-object implementation of the Calzetti et al. (2000) dust law """
@@ -59,7 +86,7 @@ class calzetti(object):
 
         # calzetti was fit in microns...
         ls = utils.convert_length(np.asarray(ls), incoming='a', outgoing='um')
-
+        
         ks = np.zeros(ls.size)
         s = ls < .63
         if s.any():
@@ -69,7 +96,10 @@ class calzetti(object):
         if l.any(): ks[l] = 2.659 * (-1.857 + 1.040 / ls[l]) + self.rv
 
         # calculate dimming factor as a function of lambda
-        factors = 10.0**(-0.4 * self.esbv * ks)
+        factors = 10.0**(-0.4 * self.esbv * ks)     #numba_calzetti(ls, self.esbv, self.rv)  # for numba use
 
         # need to return an array of shape (nls,nts).  Therefore, repeat
         return factors.reshape((ls.size, 1)).repeat(len(ts), axis=1)
+
+
+

@@ -2,19 +2,14 @@ import os
 from pymgal import utils
 import re
 from scipy.interpolate import interp1d
-# import weight
-# import collections
-# import astro_filter_light
 import numpy as np
 import astropy.io.fits as pyfits
-
-#import time
 
 
 class SSP_models(object):
     r""" Load simple stellar population models.
     model = SSP_model(model_file, IMF="chab", metal=[list], is_ised=False, is_fits=False,
-    is_ascii=False, has_masses=False, units='a', age_units='gyrs', nsample=None)
+    is_ascii=False, has_masses=False, units='a', age_units='gyrs', nsample=None, quiet=True, model_dir=None)
 
     Parameters
     ----------
@@ -36,7 +31,6 @@ class SSP_models(object):
     units      : The units of wavelength. Default: 'a'
     age_units  : The units of age. Default: 'gyrs'
                 Note, this is the age units in the model file. It is changed into yrs in side the code.
-
     nsample    : The frequency sample points. Default: None, uses the model
                  frequences. Otherwise, the interpolated frequency will be used.
                  For the popurse of reducing required memory.
@@ -45,6 +39,9 @@ class SSP_models(object):
                  If list, or numpy array, it will be directly interpolated with
                  the model frequency.
                  Note, must be consistent with the units.
+    quiet      : Do you want to silence print statements regarding the progress? Default: True
+    model_dir  : An optional path to a directory containing your models. Default: None
+                 If specified, the program will look for models in this directory instead of the default one.
 
     Returns
     -------
@@ -78,7 +75,7 @@ class SSP_models(object):
 
     def __init__(self, model_file='', IMF="chab", metal=[], is_ised=False,
                  is_fits=False, is_ascii=False, has_masses=False, units='a',
-                 age_units='gyrs', nsample=None):
+                 age_units='gyrs', nsample=None, quiet=True, model_dir=None):
         self.nmets = len(metal)
         if self.nmets == 0:
             self.metals = np.array([])
@@ -109,18 +106,18 @@ class SSP_models(object):
         self.masses = {}
         self.sft = {}
         self.defined_freq = nsample
-
-        self.model_dir = False
+    
+        self.quiet = quiet
+        self.model_dir = model_dir
         if 'SSP_models' in os.environ:
             self.model_dir = os.environ['SSP_models']
         elif 'SSP_MODELS' in os.environ:
             self.model_dir = os.environ['SSP_MODELS']
-        else:
-            self.model_dir = os.path.dirname(
-                os.path.realpath(__file__)) + '/models/'
+        elif self.model_dir is None: 
+            self.model_dir = os.path.dirname(os.path.realpath(__file__)) + '/models/'
             # save path to data folder: module directory/data
-
-        if self.model_dir and (self.model_dir[-1] != os.sep):
+        
+        if self.model_dir is not None and (self.model_dir[-1] != os.sep):
             self.model_dir += os.sep
 
         # load model
@@ -192,9 +189,9 @@ class SSP_models(object):
         # first check file path
         files = []
         metals = []
-
         for filen in os.listdir(self.model_dir):
-            if (filen[:len(file)] == file) and (filen[-10:-6] == IMF):
+            curr_imf = filen.split(".")[-2][-4:]  # Get the current IMF name by taking the last four characters before the file extension
+            if (filen[:len(file)] == file) and (curr_imf == IMF):
                 filemet = np.float64(filen.split("_")[-2])
                 if self.nmets == 0:
                     files.append('%s%s' % (self.model_dir, filen))
@@ -210,7 +207,8 @@ class SSP_models(object):
         if len(files) != 0:
             for check in files:
                 if os.path.isfile(check):
-                    print("Searching SSP model files, found: %s" % check)
+                    if not self.quiet:
+                        print("Searching SSP model files, found: %s" % check)
                 else:
                     print("There is something wrong with this model file: %s", check)
                     print("!! This may cause problems in reading !!")
@@ -369,17 +367,19 @@ class SSP_models(object):
             mids = np.int32(np.round(mids))
 
         for i, metmodel in enumerate(self.met_name):
-            print('Interpolating: ', metmodel)
+            if not self.quiet:
+                print('Interpolating metallicity Z =', metmodel)
             #start_time = time.time()
             if self.nmets > 1:
                 ids = np.where(mids == i)[0]
             else:
-                ids = np.ones(simdata.S_metal.size, dtype=np.bool)
+                ids = np.ones(simdata.S_metal.size, dtype=bool)
 
             if ids.size > 1:
                 Ns = np.int32(ids.size)
             else:
-                print("# WARNING: More CPUs than particles!!")
+                if not self.quiet:
+                    print(f"# WARNING: Found {ids.size} particles at this metallicity, which is smaller than the number of CPUs.")
                 Ns = 1  # more cpu than particles
             Lst = np.arange(0, ids.size, Ns)
             Lst = np.append(Lst, ids.size)
@@ -389,27 +389,13 @@ class SSP_models(object):
             sim_ages_array = np.asarray(simdata.S_age, dtype='<f8')
             sim_masses_array = np.asarray(simdata.S_mass, dtype='<f8')
 
-            #start_time = time.time()
-            #f = utils.custom_interp1d(ages_array, seds_array)
-            #start_time = time.time() 
-            #tmpd = f(simdata.S_age[ids]) * simdata.S_mass[ids]
-            
-            #tmpd = tmpd.astype(np.float32)
-            #end_time = time.time() 
-            #print("tmpd time: ", end_time - start_time)
-            #start_time = time.time()
             tmpd = utils.numba_interp1d(ages_array, seds_array)(sim_ages_array[ids])
             utils.handle_seds(seds, tmpd, sim_masses_array[ids], ids)  # A function that multiplies tmpd by sim masses and then updates "seds" to the right values
-            #end_time = time.time()
-            #print("Mult time: ", end_time - start_time)
-            #f = interp1d(self.ages[metmodel], self.seds[metmodel], bounds_error=False, fill_value="extrapolate")
-            #utils.assign_seds(seds, ids, tmpd) # Use the numba accelerated function from utils - otherwise it takes much longer
-          
-            #end_time = time.time()
-           # print("Time: ", end_time - start_time)
+            ls_metmodel = self.ls[metmodel]
+         
             if dust_func is not None:
-                seds[:, ids] *= dust_func(simdata.S_age[ids], self.ls[metmodel])
-
+                dust_arr = dust_func(sim_ages_array[ids], ls_metmodel)
+                utils.apply_dust(seds, ids, dust_arr)
 
         vs = np.copy(self.vs[self.met_name[0]])
         # Shift SEDs and frequencies if you're in the rest frame
@@ -422,8 +408,6 @@ class SSP_models(object):
         # Output SEDs in units of spectral flux density Fv (erg/s/cm^2/Hz) just like the equation from the original EzGal paper (https://arxiv.org/abs/1205.0009) 
         seds /= self.vs[self.met_name[0]].reshape(self.nvs[0], 1)
         
-
+        if not self.quiet: 
+            print("Interpolation for the SEDs are done.")
         return vs, seds
-        
-
-

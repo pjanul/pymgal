@@ -6,7 +6,7 @@ import h5py
 nmets = 11
 
 
-def readsnapgd(filename, block, endian=None, quiet=False, longid=False, nmet=11,
+def readsnapgd(filename, block, endian=None, quiet=True, longid=False, nmet=11,
                 fullmass=False, mu=None, fmt=None, ptype=None, rawdata=False):
     """
     readsnapgd(filename,block,endian=None,quiet=None,longid=None,met=None, fmt=None)
@@ -276,7 +276,7 @@ def readsnapgd(filename, block, endian=None, quiet=False, longid=False, nmet=11,
 
 # Read Block
 def read_block(npf, block, endian, quiet, longid, fmt, pty, rawdata):
-    from readsnapsgl import readsnapgd # import rhead
+    #from readsnapsgl import readsnapgd # import rhead
     global nmets
     endf = fstat(npf.fileno()).st_size
 

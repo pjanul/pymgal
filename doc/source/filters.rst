@@ -1,10 +1,11 @@
-| Many of the filters below are based off the list from FSPS. An up-to-date version can be found at (https://python-fsps.readthedocs.io/en/latest/filters/). The only current exception is the 4star filters (https://instrumentation.obs.carnegiescience.edu/FourStar/OPTICS/filters.html). If you can't find your desired filter, you may add a custom one to this list. 
-
-|   
 
 
+| You can create observations using any of the filters below. Many of the filters below are based off the list from python-FSPS (https://python-fsps.readthedocs.io/en/latest/filters/). 
 
-Filters List
+
+.. _filters:
+
+Filters
 ============
 
 .. list-table::
@@ -495,21 +496,21 @@ Filters List
      - CSST_nuv
      - Chinese Space Station Telescope nuv 
    * - 161
-     - CSST_u
+     - CSST_g
      - Chinese Space Station Telescope g 
    * - 162
-     - CSST_g
+     - CSST_i
      - Chinese Space Station Telescope i 
    * - 163
      - CSST_r
      - Chinese Space Station Telescope r 
    * - 164
-     - CSST_i
+     - CSST_u
      - Chinese Space Station Telescope u 
    * - 165
-     - CSST_z
+     - CSST_y
      - Chinese Space Station Telescope y 
    * - 166
-     - CSST_y
+     - CSST_z
      - Chinese Space Station Telescope z 
   
