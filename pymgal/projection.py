@@ -305,15 +305,13 @@ class projection(object):
                 # Assuming self.spectrum['sed'] is a 2D array with shape (n_particles, n_wavelengths)
                 n_wavelengths = self.spectrum['sed'].shape[1]
                 
-                # Compute the bin indices for each particle
-                x_indices = np.digitize(pos[:, 0], xx) - 1
-                y_indices = np.digitize(pos[:, 1], yy) - 1
-                
                 # Create the output array
                 self.outd['sed'] = np.zeros((self.npx, self.npx, n_wavelengths))
                 
+                #need to ignore 0 and npx bin values particles, which are outside of the mesh
+                ids = x_bins==0 | x_bins==self.npx+1 | y_bins==0 | y_bins==self.npx+1
                 # Use np.add.at for fast accumulation
-                np.add.at(self.outd['sed'], (x_indices, y_indices), self.spectrum['sed'])
+                np.add.at(self.outd['sed'], (x_bins[~ids]-1, y_bins[~ids]-1), self.spectrum['sed'][ids])
                 
                 self.outd['vs'] = self.spectrum['vs']
 
@@ -355,15 +353,13 @@ class projection(object):
                 # Assuming self.spectrum['sed'] is a 2D array with shape (n_particles, n_wavelengths)
                 n_wavelengths = self.spectrum['sed'].shape[1]
                 
-                # Compute the bin indices for each particle
-                x_indices = np.digitize(pos[:, 0], xx) - 1
-                y_indices = np.digitize(pos[:, 1], yy) - 1
-                
                 # Create the output array
                 self.outd['sed'] = np.zeros((self.npx, self.npx, n_wavelengths))
                 
+                #need to ignore 0 and npx bin values particles, which are outside of the mesh
+                ids = x_bins==0 | x_bins==self.npx+1 | y_bins==0 | y_bins==self.npx+1
                 # Use np.add.at for fast accumulation
-                np.add.at(self.outd['sed'], (x_indices, y_indices), self.spectrum['sed'])
+                np.add.at(self.outd['sed'], (x_bins[~ids]-1, y_bins[~ids]-1), self.spectrum['sed'][ids])
                 
                 self.outd['vs'] = self.spectrum['vs']
 
