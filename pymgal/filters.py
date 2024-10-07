@@ -404,5 +404,5 @@ class filters(object):
                     tnoise / utils.convert_length(utils.c, outgoing='a') if units == "fl" 
                     else tnoise         # if units are "fv"
                 )        
-            self.spectrum['sed'] = interp(new_vsn).T  # Changed to [particle, wavelength] format, need to add noise here!! 
+            self.spectrum['sed'] = interp(new_vsn)  # Changed to [particle, wavelength] format, need to add noise here!! 
         return mag
