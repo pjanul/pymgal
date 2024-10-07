@@ -372,17 +372,6 @@ class filters(object):
 
         if outspec_res is None: 
             self.spectrum['vs'] = vsn.reshape(1, vsn.size)
-            tnoise = noise           # temporary dummy noise value so we don't overwrite the user's input
-            if noise is not None:
-                tnoise = noise + to_vega + to_solar + app if units == "magnitude" else 10**(-0.4*(noise+48.6))  #output magnitude if needed, otherwise convert to Fv
-                tnoise = (
-                    tnoise  * (4.0 * np.pi * d_L**2.0) if units == "luminosity" else
-                    tnoise * (4.0 * np.pi * d_L**2.0) / L_sun if units == "lsun" else
-                    tnoise  if units == "flux" else
-                    tnoise * 10**23 if units == "jy" else
-                    tnoise / utils.convert_length(utils.c, outgoing='a') if units == "fl" 
-                    else tnoise         # if units are "fv"
-                )        
             self.spectrum['sed'] = sedn.T  # Changed to [particle, wavelength] format, need to add noise here!! 
         else:
             if isinstance(outspec_res, type(0.1)): 
@@ -393,16 +382,6 @@ class filters(object):
                 raise ValueError("The input outspec_res can only accept float value between 0 and 1 and a numpy arrary in Hertz to cover the interested spectrum energy range.", outspec_res)
 
             self.spectrum['vs'] = new_vsn.reshape(1, new_vsn.size)
-            tnoise = noise           # temporary dummy noise value so we don't overwrite the user's input
-            if noise is not None:
-                tnoise = noise + to_vega + to_solar + app if units == "magnitude" else 10**(-0.4*(noise+48.6))  #output magnitude if needed, otherwise convert to Fv
-                tnoise = (
-                    tnoise  * (4.0 * np.pi * d_L**2.0) if units == "luminosity" else
-                    tnoise * (4.0 * np.pi * d_L**2.0) / L_sun if units == "lsun" else
-                    tnoise  if units == "flux" else
-                    tnoise * 10**23 if units == "jy" else
-                    tnoise / utils.convert_length(utils.c, outgoing='a') if units == "fl" 
-                    else tnoise         # if units are "fv"
-                )        
             self.spectrum['sed'] = interp(new_vsn)  # Changed to [particle, wavelength] format, need to add noise here!! 
+
         return mag
