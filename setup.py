@@ -72,6 +72,7 @@ def setup_package():
         author_email='cuiweiguang@gmail.com, patrick.janulewicz@mail.mcgill.ca',
         description="A Package for Mock Observations in optical bands",
         long_description=read('README.md'),
+        long_description_content_type='text/markdown',
         #packages=find_namespace_packages(),
         # requires=['numpy', 'scipy', 'astropy', 'h5py', 'PyYAML'],
         install_requires = requirements, 
