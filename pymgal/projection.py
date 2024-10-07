@@ -132,6 +132,8 @@ class projection(object):
                 Default: None, but can be set to a precomputed array to avoid redundant calculations.
     g_soft  : The gravitational softening length in kpc (physical), which is coverted into pixel values and used as the maximum number of pixels used for the gaussian kernel's 1 sigma.
     noise   : The noise level in Lsun/arcsec^2
+    spectrum: The spectrum calculated in filters.calc_mag. Default: None.
+                If None, no spectrum will be output.
     outmas  : do you want to output stellar mass? Default: False.
                 If True, the stellar mass in each pixel are saved.
     outage  : do you want to out put stellar age (mass weighted)? Default: False.
@@ -149,7 +151,8 @@ class projection(object):
     """
 
     def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, p_thick=None,
-                 SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=5, noise=0, outmas=False, outage=False, outmet=False):
+                 SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=5, noise=0, 
+                 outmas=False, outage=False, outmet=False, spectrum=None):
 
         self.axis = axis
         if isinstance(npx, type("")) or isinstance(npx, type('')):
@@ -173,6 +176,7 @@ class projection(object):
         self.omet = outmet
         self.ksmooth = ksmooth
         self.noise = noise
+        self.spectrum = spectrum
         if ksmooth < 0:
             raise ValueError("ksmooth should be a non-negative integer")
         if g_soft is not None and g_soft <= 0:
@@ -246,6 +250,8 @@ class projection(object):
             metals = metals[ids]
             for i, vals in d.items():
                 dt[i] = d[i][ids]
+            if self.spectrum is not None:
+                self.spectrum['sed'] = self.spectrum['sed'][ids]
         if self.ar is None:
             if self.npx == 'auto':
                 self.npx = 512
@@ -292,9 +298,12 @@ class projection(object):
                     min_non_zero = np.min(hist[hist > 0])
                     hist[hist == 0] = min_non_zero / 2.0
                     self.outd[i] = -2.5*np.log10(hist)
-
                 else: 
                     self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=dt[i])[0]
+
+            if self.spectrum is not None:
+                self.outd['sed'], _, _ = np.histogramdd((pos[:, 0], pos[:, 1]), bins=(xx, yy), weights=self.spectrum['sed'])
+                self.outd['vs'] = self.spectrum['vs']
 
             if self.omas or self.oage or self.omet:
                 mass_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses)[0]
@@ -329,6 +338,10 @@ class projection(object):
                 else:
                     self.outd[i] = smoothed_hists[i]
 
+            # Note that no smoothing is applied to the spectrum yet!!
+            if self.spectrum is not None:
+                self.outd['sed'], _, _ = np.histogramdd((pos[:, 0], pos[:, 1]), bins=(xx, yy), weights=self.spectrum['sed'])
+                self.outd['vs'] = self.spectrum['vs']
 
             if self.omas or self.oage or self.omet:
                 max_sigma = self.g_soft/self.pxsize if self.g_soft is not None else None # Set the max standard deviation for the smoothing gaussian to be no more than the gravitational softening length of 5 kpc/h

@@ -39,6 +39,7 @@ class filters(object):
         self.vega_mag = {}
         self.solar_mag = {}
         self.noises = {}
+        self.spectrum = {}
         
         # tolerance for determining whether a given zf matches a stored zf
         # the tolerance is typical set by ezsps after creating a new astro filter
@@ -223,7 +224,7 @@ class filters(object):
     #  calc energy in filter  #
     ##############
     def calc_energy(self, sspmod, simd, fn=None, dust_func=None, unit='flux',
-                    apparent=False, vega=False, solar=False, rest_frame=False, noise=None,  redshift=0.05):
+                    apparent=False, vega=False, solar=False, rest_frame=False, noise=None, redshift=0.05):
         r"""
         mag = pymgal.calc_energy(self, sspmod, simd, fn=None, dust_func=None, unit='flux',
                                  apparent=False, vega=False, solar=False, rest_frame=False):
@@ -366,6 +367,18 @@ class filters(object):
             else:
                 raise NameError('Units of %s are unrecognized!' % units)
          
-
+        self.spectrum['vs'] = vsn
+        tnoise = noise           # temporary dummy noise value so we don't overwrite the user's input
+        if noise is not None:
+            tnoise = noise + to_vega + to_solar + app if units == "magnitude" else 10**(-0.4*(noise+48.6))  #output magnitude if needed, otherwise convert to Fv
+            tnoise = (
+                tnoise  * (4.0 * np.pi * d_L**2.0) if units == "luminosity" else
+                tnoise * (4.0 * np.pi * d_L**2.0) / L_sun if units == "lsun" else
+                tnoise  if units == "flux" else
+                tnoise * 10**23 if units == "jy" else
+                tnoise / utils.convert_length(utils.c, outgoing='a') if units == "fl" 
+                else tnoise         # if units are "fv"
+            )        
+        self.spectrum['sed'] = sedn.T  # Changed to [particle, wavelength] format, need to add noise here!! 
             
         return mag
