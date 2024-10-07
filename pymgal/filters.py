@@ -386,7 +386,7 @@ class filters(object):
             self.spectrum['sed'] = sedn.T  # Changed to [particle, wavelength] format, need to add noise here!! 
         else:
             if isinstance(outspec_res, type(0.1)): 
-                new_vsn = np.arange(vsn.min(). vsn.max(), (vsn.max()-vsn.min())/vsn.size/outspec_res)
+                new_vsn = np.arange(vsn.min(), vsn.max(), (vsn.max()-vsn.min())/vsn.size/outspec_res)
             elif isinstance(outspec_res, type(np.array([0]))):
                 new_vsn = outspec_res
             else:
