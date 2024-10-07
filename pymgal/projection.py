@@ -309,9 +309,9 @@ class projection(object):
                 self.outd['sed'] = np.zeros((self.npx, self.npx, n_wavelengths))
                 
                 #need to ignore 0 and npx bin values particles, which are outside of the mesh
-                ids = x_bins==0 | x_bins==self.npx+1 | y_bins==0 | y_bins==self.npx+1
+                ids = (x_bins==0) | (x_bins==self.npx+1) | (y_bins==0) | (y_bins==self.npx+1)
                 # Use np.add.at for fast accumulation
-                np.add.at(self.outd['sed'], (x_bins[~ids]-1, y_bins[~ids]-1), self.spectrum['sed'][ids])
+                np.add.at(self.outd['sed'], (x_bins[~ids]-1, y_bins[~ids]-1), self.spectrum['sed'][~ids])
                 
                 self.outd['vs'] = self.spectrum['vs']
 
@@ -357,9 +357,9 @@ class projection(object):
                 self.outd['sed'] = np.zeros((self.npx, self.npx, n_wavelengths))
                 
                 #need to ignore 0 and npx bin values particles, which are outside of the mesh
-                ids = x_bins==0 | x_bins==self.npx+1 | y_bins==0 | y_bins==self.npx+1
+                ids = (x_bins==0) | (x_bins==self.npx+1) | (y_bins==0) | (y_bins==self.npx+1)
                 # Use np.add.at for fast accumulation
-                np.add.at(self.outd['sed'], (x_bins[~ids]-1, y_bins[~ids]-1), self.spectrum['sed'][ids])
+                np.add.at(self.outd['sed'], (x_bins[~ids]-1, y_bins[~ids]-1), self.spectrum['sed'][~ids])
                 
                 self.outd['vs'] = self.spectrum['vs']
 
