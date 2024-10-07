@@ -151,7 +151,7 @@ class projection(object):
     """
 
     def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, p_thick=None,
-                 SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=5, noise=0, 
+                 SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=5, noise=None, 
                  outmas=False, outage=False, outmet=False, spectrum=None):
 
         self.axis = axis
@@ -383,24 +383,23 @@ class projection(object):
 
         pixel_area = (self.ar * 3600) ** 2 # Convert AR back to units from deg and compute the area of a pixel in arcsec^2
         #print(pixel_area, self.noise * pixel_area)
-        for i in dt.keys():
-            noise_stdev = self.noise[i]
-            if noise_stdev is None:
-                continue
-            if self.flux == "magnitude":
-                print("self noise sdtev: ", noise_stdev) 
-                lum_noise = 10**(noise_stdev/-2.5)
-                print(lum_noise)
-                lum_vals = 10**(self.outd[i]/-2.5)
-                
-                lum_vals += np.random.normal(loc=0.0, scale=lum_noise * pixel_area, size=self.outd[i].shape)
-                #min_non_zero = np.min(lum_vals[lum_vals > 0])
-                #lum_vals[lum_vals <= 0] = min_non_zero / np.abs(np.random.normal(loc=0.0, scale=2)) # randomly add a little bit to the minimum values
+        if self.noise is not None:  # noise for spectrum need to be added in the filters.py file
+            for i in dt.keys():
+                noise_stdev = self.noise[i]
+                if self.flux == "magnitude":
+                    print("self noise sdtev: ", noise_stdev) 
+                    lum_noise = 10**(noise_stdev/-2.5)
+                    print(lum_noise)
+                    lum_vals = 10**(self.outd[i]/-2.5)
+                    
+                    lum_vals += np.random.normal(loc=0.0, scale=lum_noise * pixel_area, size=self.outd[i].shape)
+                    #min_non_zero = np.min(lum_vals[lum_vals > 0])
+                    #lum_vals[lum_vals <= 0] = min_non_zero / np.abs(np.random.normal(loc=0.0, scale=2)) # randomly add a little bit to the minimum values
 
-                self.outd[i] = -2.5 * np.log10(lum_vals) 
-            else:
-                print("self.noise[i]", i, noise_stdev)
-                self.outd[i] += np.random.normal(loc=0.0, scale=noise_stdev * pixel_area, size=self.outd[i].shape)
+                    self.outd[i] = -2.5 * np.log10(lum_vals) 
+                else:
+                    print("self.noise[i]", i, noise_stdev)
+                    self.outd[i] += np.random.normal(loc=0.0, scale=noise_stdev * pixel_area, size=self.outd[i].shape)
 
     def write_fits_image(self, fname, comments='None', overwrite=False):
         r"""
