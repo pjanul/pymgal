@@ -39,6 +39,7 @@ class filters(object):
         self.vega_mag = {}
         self.solar_mag = {}
         self.noises = {}
+        self.spectrum = {}
         
         # tolerance for determining whether a given zf matches a stored zf
         # the tolerance is typical set by ezsps after creating a new astro filter
@@ -223,7 +224,7 @@ class filters(object):
     #  calc energy in filter  #
     ##############
     def calc_energy(self, sspmod, simd, fn=None, dust_func=None, unit='flux',
-                    apparent=False, vega=False, solar=False, rest_frame=False, noise=None,  redshift=0.05):
+                    apparent=False, vega=False, solar=False, rest_frame=False, noise=None, redshift=0.05, outspec_res=None):
         r"""
         mag = pymgal.calc_energy(self, sspmod, simd, fn=None, dust_func=None, unit='flux',
                                  apparent=False, vega=False, solar=False, rest_frame=False):
@@ -240,8 +241,11 @@ class filters(object):
         rest_frame  : Do you want the resutls in rest_frame? default: False, in observer's frame.
                         We always assume the observer is at z = 0. If true, we force everything in rest_frame.
         redshift    : The redshift specified by the user.
+        outspec_res : The energy resolution for outputting spectrum. Default: None, the model's finest resolution is output
+                        Accepted values: float: (0, 1], or an array in wavelength for sampling with unit of Hertz.
         returns     : The brightness in the units specified by the user. 
                       Magnitude by default is AB, can be apparent if apparent=True, in vega mags if vega=True or in solar mags in solar=True
+
         
         Available output units are (case insensitive):
 
@@ -365,7 +369,40 @@ class filters(object):
         
             else:
                 raise NameError('Units of %s are unrecognized!' % units)
-         
 
-            
+        if outspec_res is None: 
+            self.spectrum['vs'] = vsn.reshape(1, vsn.size)
+            tnoise = noise           # temporary dummy noise value so we don't overwrite the user's input
+            if noise is not None:
+                tnoise = noise + to_vega + to_solar + app if units == "magnitude" else 10**(-0.4*(noise+48.6))  #output magnitude if needed, otherwise convert to Fv
+                tnoise = (
+                    tnoise  * (4.0 * np.pi * d_L**2.0) if units == "luminosity" else
+                    tnoise * (4.0 * np.pi * d_L**2.0) / L_sun if units == "lsun" else
+                    tnoise  if units == "flux" else
+                    tnoise * 10**23 if units == "jy" else
+                    tnoise / utils.convert_length(utils.c, outgoing='a') if units == "fl" 
+                    else tnoise         # if units are "fv"
+                )        
+            self.spectrum['sed'] = sedn.T  # Changed to [particle, wavelength] format, need to add noise here!! 
+        else:
+            if isinstance(outspec_res, type(0.1)): 
+                new_vsn = np.arange(vsn.min(), vsn.max(), (vsn.max()-vsn.min())/vsn.size/outspec_res)
+            elif isinstance(outspec_res, type(np.array([0]))):
+                new_vsn = outspec_res
+            else:
+                raise ValueError("The input outspec_res can only accept float value between 0 and 1 and a numpy arrary in Hertz to cover the interested spectrum energy range.", outspec_res)
+
+            self.spectrum['vs'] = new_vsn.reshape(1, new_vsn.size)
+            tnoise = noise           # temporary dummy noise value so we don't overwrite the user's input
+            if noise is not None:
+                tnoise = noise + to_vega + to_solar + app if units == "magnitude" else 10**(-0.4*(noise+48.6))  #output magnitude if needed, otherwise convert to Fv
+                tnoise = (
+                    tnoise  * (4.0 * np.pi * d_L**2.0) if units == "luminosity" else
+                    tnoise * (4.0 * np.pi * d_L**2.0) / L_sun if units == "lsun" else
+                    tnoise  if units == "flux" else
+                    tnoise * 10**23 if units == "jy" else
+                    tnoise / utils.convert_length(utils.c, outgoing='a') if units == "fl" 
+                    else tnoise         # if units are "fv"
+                )        
+            self.spectrum['sed'] = interp(new_vsn)  # Changed to [particle, wavelength] format, need to add noise here!! 
         return mag

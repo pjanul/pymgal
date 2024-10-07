@@ -132,6 +132,8 @@ class projection(object):
                 Default: None, but can be set to a precomputed array to avoid redundant calculations.
     g_soft  : The gravitational softening length in kpc (physical), which is coverted into pixel values and used as the maximum number of pixels used for the gaussian kernel's 1 sigma.
     noise   : The noise level in Lsun/arcsec^2
+    spectrum: The spectrum calculated in filters.calc_mag. Default: None.
+                If None, no spectrum will be output.
     outmas  : do you want to output stellar mass? Default: False.
                 If True, the stellar mass in each pixel are saved.
     outage  : do you want to out put stellar age (mass weighted)? Default: False.
@@ -149,7 +151,8 @@ class projection(object):
     """
 
     def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, p_thick=None,
-                 SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=5, noise=0, outmas=False, outage=False, outmet=False):
+                 SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=5, noise=None, 
+                 outmas=False, outage=False, outmet=False, spectrum=None):
 
         self.axis = axis
         if isinstance(npx, type("")) or isinstance(npx, type('')):
@@ -173,6 +176,7 @@ class projection(object):
         self.omet = outmet
         self.ksmooth = ksmooth
         self.noise = noise
+        self.spectrum = spectrum
         if ksmooth < 0:
             raise ValueError("ksmooth should be a non-negative integer")
         if g_soft is not None and g_soft <= 0:
@@ -246,6 +250,8 @@ class projection(object):
             metals = metals[ids]
             for i, vals in d.items():
                 dt[i] = d[i][ids]
+            if self.spectrum is not None:
+                self.spectrum['sed'] = self.spectrum['sed'][ids]
         if self.ar is None:
             if self.npx == 'auto':
                 self.npx = 512
@@ -292,9 +298,22 @@ class projection(object):
                     min_non_zero = np.min(hist[hist > 0])
                     hist[hist == 0] = min_non_zero / 2.0
                     self.outd[i] = -2.5*np.log10(hist)
-
                 else: 
                     self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=dt[i])[0]
+
+            if self.spectrum is not None:
+                # Assuming self.spectrum['sed'] is a 2D array with shape (n_particles, n_wavelengths)
+                n_wavelengths = self.spectrum['sed'].shape[1]
+                
+                # Create the output array
+                self.outd['sed'] = np.zeros((self.npx, self.npx, n_wavelengths))
+                
+                #need to ignore 0 and npx bin values particles, which are outside of the mesh
+                ids = (x_bins==0) | (x_bins==self.npx+1) | (y_bins==0) | (y_bins==self.npx+1)
+                # Use np.add.at for fast accumulation
+                np.add.at(self.outd['sed'], (x_bins[~ids]-1, y_bins[~ids]-1), self.spectrum['sed'][~ids])
+                
+                self.outd['vs'] = self.spectrum['vs']
 
             if self.omas or self.oage or self.omet:
                 mass_hist = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=masses)[0]
@@ -329,6 +348,20 @@ class projection(object):
                 else:
                     self.outd[i] = smoothed_hists[i]
 
+            # Note that no smoothing is applied to the spectrum yet!!
+            if self.spectrum is not None:
+                # Assuming self.spectrum['sed'] is a 2D array with shape (n_particles, n_wavelengths)
+                n_wavelengths = self.spectrum['sed'].shape[1]
+                
+                # Create the output array
+                self.outd['sed'] = np.zeros((self.npx, self.npx, n_wavelengths))
+                
+                #need to ignore 0 and npx bin values particles, which are outside of the mesh
+                ids = (x_bins==0) | (x_bins==self.npx+1) | (y_bins==0) | (y_bins==self.npx+1)
+                # Use np.add.at for fast accumulation
+                np.add.at(self.outd['sed'], (x_bins[~ids]-1, y_bins[~ids]-1), self.spectrum['sed'][~ids])
+                
+                self.outd['vs'] = self.spectrum['vs']
 
             if self.omas or self.oage or self.omet:
                 max_sigma = self.g_soft/self.pxsize if self.g_soft is not None else None # Set the max standard deviation for the smoothing gaussian to be no more than the gravitational softening length of 5 kpc/h
@@ -350,24 +383,23 @@ class projection(object):
 
         pixel_area = (self.ar * 3600) ** 2 # Convert AR back to units from deg and compute the area of a pixel in arcsec^2
         #print(pixel_area, self.noise * pixel_area)
-        for i in dt.keys():
-            noise_stdev = self.noise[i]
-            if noise_stdev is None:
-                continue
-            if self.flux == "magnitude":
-                print("self noise sdtev: ", noise_stdev) 
-                lum_noise = 10**(noise_stdev/-2.5)
-                print(lum_noise)
-                lum_vals = 10**(self.outd[i]/-2.5)
-                
-                lum_vals += np.random.normal(loc=0.0, scale=lum_noise * pixel_area, size=self.outd[i].shape)
-                #min_non_zero = np.min(lum_vals[lum_vals > 0])
-                #lum_vals[lum_vals <= 0] = min_non_zero / np.abs(np.random.normal(loc=0.0, scale=2)) # randomly add a little bit to the minimum values
+        if self.noise is not None:  # noise for spectrum need to be added in the filters.py file
+            for i in dt.keys():
+                noise_stdev = self.noise[i]
+                if self.flux == "magnitude":
+                    print("self noise sdtev: ", noise_stdev) 
+                    lum_noise = 10**(noise_stdev/-2.5)
+                    print(lum_noise)
+                    lum_vals = 10**(self.outd[i]/-2.5)
+                    
+                    lum_vals += np.random.normal(loc=0.0, scale=lum_noise * pixel_area, size=self.outd[i].shape)
+                    #min_non_zero = np.min(lum_vals[lum_vals > 0])
+                    #lum_vals[lum_vals <= 0] = min_non_zero / np.abs(np.random.normal(loc=0.0, scale=2)) # randomly add a little bit to the minimum values
 
-                self.outd[i] = -2.5 * np.log10(lum_vals) 
-            else:
-                print("self.noise[i]", i, noise_stdev)
-                self.outd[i] += np.random.normal(loc=0.0, scale=noise_stdev * pixel_area, size=self.outd[i].shape)
+                    self.outd[i] = -2.5 * np.log10(lum_vals) 
+                else:
+                    print("self.noise[i]", i, noise_stdev)
+                    self.outd[i] += np.random.normal(loc=0.0, scale=noise_stdev * pixel_area, size=self.outd[i].shape)
 
     def write_fits_image(self, fname, comments='None', overwrite=False):
         r"""
@@ -398,7 +430,12 @@ class projection(object):
             hdu.header["NAXIS2"] = int(self.outd[i].shape[1])
             hdu.header["EXTEND"] = True
             hdu.header.comments["EXTEND"] = 'Extensions may be present'
-            hdu.header["FILTER"] = i
+            if i == 'vn':
+                hdu.header["FILTER"] = 'Wavelength'
+            elif i == 'sed':
+                hdu.header["FILTER"] = 'Spectrum'
+            else:
+                hdu.header["FILTER"] = i
             hdu.header.comments["FILTER"] = 'filter used'
             hdu.header["RADECSYS"] = 'ICRS    '
             hdu.header.comments["RADECSYS"] = "International Celestial Ref. System"
@@ -433,8 +470,15 @@ class projection(object):
             hdu.header.comments["RCVAL2"] = 'Real center Y of the data'
             hdu.header["RCVAL3"] = float(self.cc[2])
             hdu.header.comments["RCVAL3"] = 'Real center Z of the data'
-            hdu.header["UNITS"] = "kpc"
-            hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
+            if i == 'vn':
+                hdu.header["UNITS"] = "Hertz"
+                hdu.header.comments["UNITS"] = "The wavelength for the spectrum"
+            elif i == 'sed':
+                hdu.header["UNITS"] = "erg/s/cm^2/Hz"
+                hdu.header.comments["UNITS"] = "The spectrum in Fv for an object 10 pc away, as defined in the EzGal paper."
+            else:
+                hdu.header["UNITS"] = "kpc"
+                hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
             hdu.header["PIXVAL"] = "years" if i.lower() == "age" else "metallicity" if i.lower() == "metal" else "M_sun" if i.lower() == "mass" \
                                     else "erg/s" if self.flux == "luminosity" else "erg/s/cm^2" if self.flux == "flux" else "erg/s/cm^2/Hz" if self.flux == "fv" \
                                     else "jansky" if self.flux == "jy" else "erg/s/cm^2/angstrom" if self.flux == "fl" else "mag" + " (" + self.mag_type + ")"
