@@ -91,6 +91,9 @@ class MockObservation(object):
                         If k=0, pymgal does not perform smoothing.
                         If k<0, throw an error.
     g_soft         : The gravitational softening length in kpc (physical), which is coverted into pixel values and used as the maximum number of pixels used for the gaussian kernel's 1 sigma.
+    add_spec       : Do you want to include the spectrum of the particles? Default: False. If true, the spectrum of each particle will be added to the pixels in the observation.
+    spec_res       : If add_spec is set to True, you can define the resolution of the output spectrum. Default: None
+                     If None, the max resolution of the spectrum will be used. 
     ncpu           : The number of CPUs you want to use to parallelize the task
     noise          : The level of Gaussian noise you want in your output maps in AB mag / arcsec^2. Default: None
                         If given a float/int, the AB magnitude will be converted to the appropriate output unit and added as Gaussian noise
@@ -121,6 +124,8 @@ class MockObservation(object):
             "z_obs": 0.1,
             "ksmooth": 100,
             "g_soft": None,
+            "add_spec": False,
+            "spec_res": None,
             "p_thick": None,
             "ncpu": 16,
             "noise": None,
@@ -182,22 +187,23 @@ class MockObservation(object):
 
         # Compute magnitudes
         is_vega = self.params["mag_type"].lower().startswith('vega')
-        mag = filters_list.calc_energy(sspmod, self.simd, dust_func=dustf, vega=is_vega, unit=self.params["out_val"], rest_frame=self.params["rest_frame"], noise=self.params["noise"], redshift=z_obs)
+        mag = filters_list.calc_energy(sspmod, self.simd, dust_func=dustf, vega=is_vega, unit=self.params["out_val"], rest_frame=self.params["rest_frame"], noise=self.params["noise"], redshift=z_obs, outspec_res=self.params["spec_res"])
 
         # Store the precomputed attributes
         self.mag = mag
         self.sspmod = sspmod
+        self.spectrum = filters_list.spectrum
+        
         self.noise_dict = filters_list.noises
         self.stored_params = self.params.copy()  # Store the current configuration
 
-    def project_worker(self, proj_direc, output_dir, lsmooth=None):
+    def project_worker(self, proj_direc, output_dir, lsmooth=None, spectrum=None):
         if not self.params["quiet"]:
             print("Projecting to:", proj_direc)
         pj = projection(self.mag, self.simd, npx=self.params["npx"], unit=self.params["out_val"], AR=self.params["AR"], redshift=self.params["z_obs"], p_thick=self.params["p_thick"],
-                           axis=proj_direc, mag_type=self.params["mag_type"], ksmooth=self.params["ksmooth"], lsmooth=lsmooth, noise=self.noise_dict, outmas=self.params["outmas"], 
+                           axis=proj_direc, mag_type=self.params["mag_type"], ksmooth=self.params["ksmooth"], lsmooth=lsmooth, noise=self.noise_dict, spectrum=spectrum, outmas=self.params["outmas"], 
                            outage=self.params["outage"], outmet=self.params["outmet"])
  
-
         if isinstance(proj_direc, np.ndarray):
             proj_direc = f"({';'.join(map(str, proj_direc))})"
         if isinstance(proj_direc, list):
@@ -214,6 +220,10 @@ class MockObservation(object):
         # Check if magnitudes need to be recomputed
         if self.mag is None or self.params_changed():
             self.get_mags()
+        
+        spectrum = self.spectrum if self.params["add_spec"] else None
+        if (self.params["ksmooth"] > 0 and self.params["add_spec"]) or (self.params["noise"] is not None and self.params["add_spec"]):
+            raise ValueError("Spectrum is not supported for projections with noise or with smoothing. Please change your settings and try again.")
   
         lsmooth=None
         # Optionally compute kNN distances for smoothing
@@ -234,10 +244,8 @@ class MockObservation(object):
         if not projections:
             raise ValueError("Please provide projection vectors or set num_random_proj.")
  
-        worker_args = [(proj_direc, output_dir, lsmooth) for proj_direc in proj_vecs]
+        worker_args = [(proj_direc, output_dir, lsmooth, spectrum) for proj_direc in proj_vecs]
 
         # Use multiprocessing to parallelize the project_worker calls
         with Pool(self.params["ncpu"]) as pool:
             pool.starmap(self.project_worker, worker_args)
-        for proj_direc in projections:
-            self.project_worker(proj_direc, output_dir, lsmooth=lsmooth)
