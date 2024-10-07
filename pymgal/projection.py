@@ -430,7 +430,12 @@ class projection(object):
             hdu.header["NAXIS2"] = int(self.outd[i].shape[1])
             hdu.header["EXTEND"] = True
             hdu.header.comments["EXTEND"] = 'Extensions may be present'
-            hdu.header["FILTER"] = i
+            if i == 'vn':
+                hdu.header["FILTER"] = 'Wavelength'
+            elif i == 'sed':
+                hdu.header["FILTER"] = 'Spectrum'
+            else:
+                hdu.header["FILTER"] = i
             hdu.header.comments["FILTER"] = 'filter used'
             hdu.header["RADECSYS"] = 'ICRS    '
             hdu.header.comments["RADECSYS"] = "International Celestial Ref. System"
@@ -465,8 +470,15 @@ class projection(object):
             hdu.header.comments["RCVAL2"] = 'Real center Y of the data'
             hdu.header["RCVAL3"] = float(self.cc[2])
             hdu.header.comments["RCVAL3"] = 'Real center Z of the data'
-            hdu.header["UNITS"] = "kpc"
-            hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
+            if i == 'vn':
+                hdu.header["UNITS"] = "Hertz"
+                hdu.header.comments["UNITS"] = "The wavelength for the spectrum"
+            elif i == 'sed':
+                hdu.header["UNITS"] = "erg/s/cm^2/Hz"
+                hdu.header.comments["UNITS"] = "The spectrum in Fv for an object 10 pc away, as defined in the EzGal paper."
+            else:
+                hdu.header["UNITS"] = "kpc"
+                hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
             hdu.header["PIXVAL"] = "years" if i.lower() == "age" else "metallicity" if i.lower() == "metal" else "M_sun" if i.lower() == "mass" \
                                     else "erg/s" if self.flux == "luminosity" else "erg/s/cm^2" if self.flux == "flux" else "erg/s/cm^2/Hz" if self.flux == "fv" \
                                     else "jansky" if self.flux == "jy" else "erg/s/cm^2/angstrom" if self.flux == "fl" else "mag" + " (" + self.mag_type + ")"

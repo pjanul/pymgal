@@ -367,7 +367,7 @@ class filters(object):
             else:
                 raise NameError('Units of %s are unrecognized!' % units)
          
-        self.spectrum['vs'] = vsn
+        self.spectrum['vs'] = vsn.reshape(1, vsn.size)
         tnoise = noise           # temporary dummy noise value so we don't overwrite the user's input
         if noise is not None:
             tnoise = noise + to_vega + to_solar + app if units == "magnitude" else 10**(-0.4*(noise+48.6))  #output magnitude if needed, otherwise convert to Fv
