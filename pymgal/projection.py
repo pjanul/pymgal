@@ -302,7 +302,19 @@ class projection(object):
                     self.outd[i] = np.histogram2d(pos[:, 0], pos[:, 1], bins=[xx, yy], weights=dt[i])[0]
 
             if self.spectrum is not None:
-                self.outd['sed'], _, _ = np.histogramdd((pos[:, 0], pos[:, 1]), bins=(xx, yy), weights=self.spectrum['sed'])
+                # Assuming self.spectrum['sed'] is a 2D array with shape (n_particles, n_wavelengths)
+                n_wavelengths = self.spectrum['sed'].shape[1]
+                
+                # Compute the bin indices for each particle
+                x_indices = np.digitize(pos[:, 0], xx) - 1
+                y_indices = np.digitize(pos[:, 1], yy) - 1
+                
+                # Create the output array
+                self.outd['sed'] = np.zeros((self.npx, self.npx, n_wavelengths))
+                
+                # Use np.add.at for fast accumulation
+                np.add.at(self.outd['sed'], (x_indices, y_indices), self.spectrum['sed'])
+                
                 self.outd['vs'] = self.spectrum['vs']
 
             if self.omas or self.oage or self.omet:
@@ -340,7 +352,19 @@ class projection(object):
 
             # Note that no smoothing is applied to the spectrum yet!!
             if self.spectrum is not None:
-                self.outd['sed'], _, _ = np.histogramdd((pos[:, 0], pos[:, 1]), bins=(xx, yy), weights=self.spectrum['sed'])
+                # Assuming self.spectrum['sed'] is a 2D array with shape (n_particles, n_wavelengths)
+                n_wavelengths = self.spectrum['sed'].shape[1]
+                
+                # Compute the bin indices for each particle
+                x_indices = np.digitize(pos[:, 0], xx) - 1
+                y_indices = np.digitize(pos[:, 1], yy) - 1
+                
+                # Create the output array
+                self.outd['sed'] = np.zeros((self.npx, self.npx, n_wavelengths))
+                
+                # Use np.add.at for fast accumulation
+                np.add.at(self.outd['sed'], (x_indices, y_indices), self.spectrum['sed'])
+                
                 self.outd['vs'] = self.spectrum['vs']
 
             if self.omas or self.oage or self.omet:
