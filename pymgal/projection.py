@@ -386,19 +386,15 @@ class projection(object):
         if self.noise is not None:  # noise for spectrum need to be added in the filters.py file
             for i in dt.keys():
                 noise_stdev = self.noise[i]
+                if noise_stdev is None:
+                    continue
                 if self.flux == "magnitude":
-                    print("self noise sdtev: ", noise_stdev) 
                     lum_noise = 10**(noise_stdev/-2.5)
-                    print(lum_noise)
                     lum_vals = 10**(self.outd[i]/-2.5)
                     
                     lum_vals += np.random.normal(loc=0.0, scale=lum_noise * pixel_area, size=self.outd[i].shape)
-                    #min_non_zero = np.min(lum_vals[lum_vals > 0])
-                    #lum_vals[lum_vals <= 0] = min_non_zero / np.abs(np.random.normal(loc=0.0, scale=2)) # randomly add a little bit to the minimum values
-
                     self.outd[i] = -2.5 * np.log10(lum_vals) 
                 else:
-                    print("self.noise[i]", i, noise_stdev)
                     self.outd[i] += np.random.normal(loc=0.0, scale=noise_stdev * pixel_area, size=self.outd[i].shape)
 
     def write_fits_image(self, fname, comments='None', overwrite=False):
@@ -470,19 +466,19 @@ class projection(object):
             hdu.header.comments["RCVAL2"] = 'Real center Y of the data'
             hdu.header["RCVAL3"] = float(self.cc[2])
             hdu.header.comments["RCVAL3"] = 'Real center Z of the data'
+            hdu.header["UNITS"] = 'kpc'
+            hdu.header.comments['UNITS'] = 'Units for the RCVAL and PSIZE'
             if i == 'vn':
-                hdu.header["UNITS"] = "Hertz"
-                hdu.header.comments["UNITS"] = "The wavelength for the spectrum"
+                hdu.header["PIXVAL"] = "Hertz"
+                hdu.header.comments["PIXVAL"] = "The wavelength for the spectrum"
             elif i == 'sed':
-                hdu.header["UNITS"] = "erg/s/cm^2/Hz"
-                hdu.header.comments["UNITS"] = "The spectrum in Fv for an object 10 pc away, as defined in the EzGal paper."
+                hdu.header["PIXVAL"] = "erg/s/cm^2/Hz"
+                hdu.header.comments["PIXVAL"] = "The spectrum in Fv for an object 10 pc away."
             else:
-                hdu.header["UNITS"] = "kpc"
-                hdu.header.comments["UNITS"] = 'Units for the RCVAL and PSIZE'
-            hdu.header["PIXVAL"] = "years" if i.lower() == "age" else "metallicity" if i.lower() == "metal" else "M_sun" if i.lower() == "mass" \
-                                    else "erg/s" if self.flux == "luminosity" else "erg/s/cm^2" if self.flux == "flux" else "erg/s/cm^2/Hz" if self.flux == "fv" \
-                                    else "jansky" if self.flux == "jy" else "erg/s/cm^2/angstrom" if self.flux == "fl" else "mag" + " (" + self.mag_type + ")"
-            hdu.header.comments["PIXVAL"] = 'The units of the pixel values in your image'
+                hdu.header["PIXVAL"] = "years" if i.lower() == "age" else "metallicity" if i.lower() == "metal" else "M_sun" if i.lower() == "mass" \
+                                        else "erg/s" if self.flux == "luminosity" else "erg/s/cm^2" if self.flux == "flux" else "erg/s/cm^2/Hz" if self.flux == "fv" \
+                                        else "jansky" if self.flux == "jy" else "erg/s/cm^2/angstrom" if self.flux == "fl" else "mag" + " (" + self.mag_type + ")"
+                hdu.header.comments["PIXVAL"] = 'The units of the pixel values in your image'   
             hdu.header["ORAD"] = float(self.rr)
             hdu.header.comments["ORAD"] = 'Rcut in physical for the image.'
             hdu.header["REDSHIFT"] = float(self.z)
