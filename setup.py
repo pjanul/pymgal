@@ -69,7 +69,7 @@ def setup_package():
         packages=find_namespace_packages(),
         version=VERSION,
         author='Weiguang Cui, Patrick Janulewicz',
-        author_email='cuiweiguang@gmail.com, patrick.janulewicz@mail.mcgill.ca',
+        author_email='cuiweiguang@gmail.com, patrick.janulewicz@gmail.com',
         description="A Package for Mock Observations in optical bands",
         long_description=read('README.md'),
         long_description_content_type='text/markdown',
