@@ -52,6 +52,8 @@ There are many different parameters you can modify for your magnitude calculatio
                "ksmooth": 100,
                "g_soft": None,
                "p_thick": None,
+               "add_spec": False,
+               "spec_res": None,
                "ncpu": 16,
                "noise": None,
                "outmas": True,
@@ -111,6 +113,12 @@ This document describes the various parameters used in PyMGal for generating opt
 
 - **p_thick**:  
     The thickness cut (in kpc/h) along the projection direction. This cut is applied as `[center-p_thick, center+p_thick]`. If set to `null`, no cut is applied, and all data is used.
+    
+- **add_spec**:  
+    Do you want to output the spectrum of your observation for your choice of axes? If set to True, the spectrum will be written to a fits file. 
+    
+- **spec_res**:  
+    If you chose `add_spec = True`, you can modify the spectral resolution here. Accepted values: float: (0, 1], or an array in wavelength for sampling with unit of Hertz. If `add_spec = False`, this does nothing.
 
 - **ncpu**:  
     The number of CPUs used in parallel processing.
