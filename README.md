@@ -2,17 +2,19 @@
 
 PyMGal is a package that uses simple stellar synthesis models to generate observed galaxies from hydrodynamical simulations. If you want a more detailed explanation of PyMGal than can be provided in a short readme file, see the documentation at [https://pymgal.readthedocs.io](https://pymgal.readthedocs.io).
 
+![pymgal_demo](https://github.com/user-attachments/assets/4e1a7977-c389-41a6-a644-edadb00f03a7)
 
 
 
 Installation 
 ============
 
-PyMGal is registered with the Python Package Index (PyPI). To download the latest stable version, simply pip install it. Make sure you have all the necessary requirements from the requirements.txt file.
+PyMGal is registered with the Python Package Index (PyPI). To download the latest stable version, simply pip install it. Make sure you have all the necessary requirements from the requirements.txt file. If you're reading this from PyPI, please take a look at the [Github page](https://github.com/pjanul/pymgal)
 
-  * pip install pymgal
-  
-  
+ ```python
+pip install pymgal
+```
+
  
 Usage
 ============
