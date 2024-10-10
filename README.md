@@ -1,20 +1,24 @@
 # README
 
-PyMGal is a package that uses simple stellar synthesis models to generate observed galaxies from hydrodynamical simulations. If you want a more detailed explanation of PyMGal than can be provided in a short readme file, see the documentation at [https://pymgal.readthedocs.io](https://pymgal.readthedocs.io).
+PyMGal is a package that uses simple stellar synthesis models to generate mock observations of galaxies from hydrodynamical simulations. If you want a more detailed explanation of PyMGal than can be provided in a short readme file, see the documentation at [https://pymgal.readthedocs.io](https://pymgal.readthedocs.io).
+
+
+If you're viewing this from the Github page, you may wish to view PyMGal's official page at the [Python Package Index (PyPI)](https://pypi.org/project/pymgal/).
+
+If you're viewing this from the PyPI page, you may want to see the full [Github repository](https://github.com/pjanul/pymgal).
+
 
 ![pymgal_demo](https://github.com/user-attachments/assets/4e1a7977-c389-41a6-a644-edadb00f03a7)
-
 
 
 Installation 
 ============
 
-PyMGal is registered with the Python Package Index (PyPI). To download the latest stable version, simply pip install it. Make sure you have all the necessary requirements from the requirements.txt file. If you're reading this from PyPI, please take a look at the [Github page](https://github.com/pjanul/pymgal)
+Since PyMGal is registered with PyPI, you can simply pip install the latest stable version. Make sure you have all the necessary prerequisites from the requirements.txt file beforehand. 
 
- ```python
+```python
 pip install pymgal
 ```
-
  
 Usage
 ============
@@ -72,7 +76,7 @@ class MockObservation(object):
                "quiet": False
            }
 ```
-* ** Note: If you're working with data from The Three Hundred Project, we've included a script called pymgal/doc/the300_helper.py which helps you get positions from AHF halos. Open it and read the comments at the top for instructions. Fair warning: PyMGal has been modified quite a bit since this script was written, so you may need to make some modifications. **
+* **Note: If you're working with data from The Three Hundred Project, we've included a script called pymgal/doc/the300_helper.py which helps you get positions from AHF halos. Open it and read the comments at the top for instructions. Fair warning: PyMGal has been modified quite a bit since this script was written, so you may need to make some modifications.**
 
 Who do I talk to?
 -----------
