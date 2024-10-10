@@ -11,7 +11,7 @@ except ImportError: # for pip <= 9.0.3
 
 
 MAJOR = 1
-MINOR = 0
+MINOR = 1
 VERSION = '%d.%d' % (MAJOR, MINOR)
 
 
@@ -86,14 +86,14 @@ def setup_package():
                  'models/*.model',
                  'filters/*',
                  'refs/*']},
-        license="BSD",
+        license="MIT",
         keywords='astronomy astrophysics hydrodynamical simulation mock observation',
         classifiers=[
             "Development Status :: 5 - Production/Stable",
             "Intended Audience :: Science/Research",
             "Natural Language :: English",
             "Topic :: Scientific/Engineering :: Astronomy",
-            "License :: OSI Approved :: BSD License",
+            "License :: OSI Approved :: MIT License",
             "Programming Language :: Python :: 2",
             "Programming Language :: Python :: 3"
         ]
