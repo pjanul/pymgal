@@ -48,6 +48,6 @@ License
 
 This code is available under the MIT License.
 
-PyMGal is An accompanying paper is in the works for this repository. We will update this page with a citation once it is ready.
+An accompanying paper is in the works for this repository. We will update this page with a citation once it is ready.
 PyMGal borrows a lot from EzGal (http://www.baryons.org/ezgal/), so please cite them if you use this package. 
 
