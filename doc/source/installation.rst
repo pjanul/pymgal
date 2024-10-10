@@ -6,7 +6,12 @@ This guide will walk you through the necessary prerequisites, installation steps
 
 Installing stable version
 -------------
-We are working on registering PyMGal with the Python Package Index (PyPI). Once this is done, PyMGal will be installable with pip. Until then, please install the developer version.
+To install the latest version of PyMGal that is registered with the Python Package Index (PyPI), simply pip install the package.
+
+.. code-block:: python
+
+   pip install pymgal
+   
 
 Installing developer version
 -------------
@@ -14,7 +19,7 @@ To install the latest version, you can clone the repository with git.
 
 .. code-block:: python
 
-   git clone https://bitbucket.org/pjanul/pymgal
+   git clone https://github.com/pjanul/pymgal
    pip install /your/path/to/pymgal
    
   
