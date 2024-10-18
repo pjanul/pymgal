@@ -1,6 +1,7 @@
-| Many of the filters below are based off the list from FSPS. An up-to-date version can be found at (https://python-fsps.readthedocs.io/en/latest/filters/). The only current exception is the 4star filters (https://instrumentation.obs.carnegiescience.edu/FourStar/OPTICS/filters.html). If you can't find your desired filter, you may add a custom one to this list. 
+| You can create observations using any of the filters below. Many of the filters below are based off the list from python-FSPS (https://python-fsps.readthedocs.io/en/latest/filters/), so please give them credit where credit is due.
 
-|   
+
+| In addition to these FSPS filters, we have the 4star filters from EzGal, the Chinese Space Station Telescope (CSST), and the DESI filters (BASS_g, BASS_r, MzLS_z). 
 
 
 
@@ -512,4 +513,15 @@ Filters List
    * - 166
      - CSST_y
      - Chinese Space Station Telescope z 
+   * - 167
+     - BASS_g
+     - Beijing Arizona Sky Survey g-band used in DESI (https://speclite.readthedocs.io/en/latest/filters.html)
+   * - 168
+     - BASS_r
+     - Beijing Arizona Sky Survey r-band used in DESI (https://speclite.readthedocs.io/en/latest/filters.html)
+   * - 169
+     - MzLS_z
+     - Mayall z-band Legacy Survey z-band used in DESI (https://speclite.readthedocs.io/en/latest/filters.html)
+   
+  
   
