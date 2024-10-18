@@ -6,7 +6,6 @@
 
 | 
 
-|
 
 .. list-table::
    :widths: 5 10 25
