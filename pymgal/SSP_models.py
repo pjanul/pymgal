@@ -120,7 +120,7 @@ class SSP_models(object):
         if self.model_dir is not None and (self.model_dir[-1] != os.sep):
             self.model_dir += os.sep
 
-        # load model
+        # load model !! Note currently only the saved models files (.model) are expected to work!!
         self._load(model_file, IMF, is_ised=is_ised, is_fits=is_fits,
                    is_ascii=is_ascii, has_masses=has_masses, units=units,
                    age_units=age_units)
@@ -246,7 +246,7 @@ class SSP_models(object):
         """
         ezsps._load_model(model_file)
 
-        loads a model from a fits file created with ezsps.save_model()
+        loads a model from a fits file created with ezsps.save_model(), which has units of ergs/cm^2/s/Hz by putting into 10 pc away
         Saves the model information in the model object
         """
         for i in range(self.nmets):
@@ -271,6 +271,10 @@ class SSP_models(object):
                 if 'has_sfh' in fits[2].header and fits[2].header['has_sfh']:
                     self.sfh[self.met_name[i]] = fits[2].data.field('sfh')
                     self.has_sfh = True
+
+                # for us to use, we need to convert the units by removing cm^2 and adding solar luminosity to it for the stars are always in solar mass
+                self.seds[self.met_name[i]] *= 4.0 * np.pi * utils.convert_length(10, incoming='pc', outgoing='cm')**2.0 # in ergs/s/Hz
+
             else:
                 raise ValueError(
                     'Fits file: %s does not contains seds!' % file)
@@ -381,15 +385,18 @@ class SSP_models(object):
                 if not self.quiet:
                     print(f"# WARNING: Found {ids.size} particles at this metallicity, which is smaller than the number of CPUs.")
                 Ns = 1  # more cpu than particles
-            Lst = np.arange(0, ids.size, Ns)
-            Lst = np.append(Lst, ids.size)
+            # Lst = np.arange(0, ids.size, Ns)
+            # Lst = np.append(Lst, ids.size)
+
+            #intp=interp1d(self.ages[metmodel], self.seds[metmodel], axis=1, bounds_error=False, fill_value="extrapolate")
+            #seds[:, ids] = intp(simdata.S_age[ids])*simdata.S_mass[ids]
 
             ages_array = np.asarray(self.ages[metmodel], dtype='<f8')
             seds_array = np.asarray(self.seds[metmodel], dtype='<f8')
             sim_ages_array = np.asarray(simdata.S_age, dtype='<f8')
             sim_masses_array = np.asarray(simdata.S_mass, dtype='<f8')
 
-            tmpd = utils.numba_interp1d(ages_array, seds_array)(sim_ages_array[ids])
+            tmpd = utils.numba_interp1d(ages_array, seds_array)(sim_ages_array[ids]) 
             utils.handle_seds(seds, tmpd, sim_masses_array[ids], ids)  # A function that multiplies tmpd by sim masses and then updates "seds" to the right values
             ls_metmodel = self.ls[metmodel]
          
@@ -403,10 +410,6 @@ class SSP_models(object):
             non_neg_z = max(0, simdata.redshift)  # Make sure you don't get a negative redshift in case of weird snapshot anomalies
             vs /= (1 + non_neg_z)
             seds *= (1 + non_neg_z)
-
-
-        # Output SEDs in units of spectral flux density Fv (erg/s/cm^2/Hz) just like the equation from the original EzGal paper (https://arxiv.org/abs/1205.0009) 
-        seds /= self.vs[self.met_name[0]].reshape(self.nvs[0], 1)
         
         if not self.quiet: 
             print("Interpolation for the SEDs are done.")
