@@ -1,6 +1,8 @@
 from pymgal.readsnapsgl import readsnap
 import numpy as np
 from astropy.cosmology import FlatLambdaCDM
+import os
+from contextlib import redirect_stdout
 # from scipy.interpolate import griddata
 
 
@@ -55,7 +57,7 @@ class load_data(object):
         self.center = center
         self.radius = radius
         self.nx = self.grid_mass = self.grid_age = self.grid_metal = None
-
+        
         if snapshot:
             self._load_snap(snapname, nmet)
         elif yt_data is not None:
@@ -64,8 +66,18 @@ class load_data(object):
             self._load_raw(datafile)
 
     def _load_snap(self, filename, nmetal):
+
+        GFM_string = ""    # Some simulations (e.g. IllustrisTNG) format some quantities with "GFM_" prefix (e.g. GFM_Metallicity, GFM_SellarFormationTime)
+        mass_string = "Masses"  # Many simulations write mass values as "Masses", but others (e.g. EAGLE) write it as "Mass".
+
+        with redirect_stdout(open(os.devnull, 'w')):   # Since we are just checking for alternative names, we can suppress print statements warning that the metallicity/mass field cannot be found  
+            if filename[-4:]=='hdf5' and readsnap(filename, "GFM_Metallicity", ptype=4, quiet=True) is not None:   # Test if 'GFM_Metallicity' is present. If so, we will add the GFM_ prefix where needed. Otherwise leave it as is
+                GFM_string = "GFM_"
+            if filename[-4:]=='hdf5' and readsnap(filename, "Masses", ptype=4, quiet=True) is None and readsnap(filename, "Mass", ptype=4, quiet=True) is not None:
+                mass_string = "Mass"
+            
         if filename[-4:]=='hdf5':
-            head = readsnap(filename, "HEAD", quiet=True)
+            head = readsnap(filename, "HEAD", quiet=True)  
         else:
             head = readsnap(filename, "HEAD", quiet=True)
         self.cosmology = FlatLambdaCDM(head.HubbleParam * 100, head.Omega0)
@@ -96,18 +108,22 @@ class load_data(object):
                                   spos[:,1].max()-self.center[1], self.center[1]-spos[:,1].min(),
                                   spos[:,2].max()-self.center[2], self.center[2]-spos[:,2].min()])
         if filename[-4:]=='hdf5':
-            age = readsnap(filename, "StellarFormationTime",ptype=4, quiet=True)[ids]
+            age = readsnap(filename, GFM_string + "StellarFormationTime",ptype=4, quiet=True)[ids]
         else:
             age = readsnap(filename, "AGE ", quiet=True)[:head.totnum[4]][ids]
         age = self.Uage - self.cosmology.age(1. / age - 1).value
         age[age < 0] = 0  # remove negative ages
         self.S_age = age * 1.0e9  # in yrs
         if filename[-4:]=='hdf5':
-            self.S_mass = readsnap(filename, "Masses", ptype=4, quiet=True)[ids] * 1.0e10 / head.HubbleParam
+            self.S_mass = readsnap(filename, mass_string, ptype=4, quiet=True)[ids] * 1.0e10 / head.HubbleParam   # either "Masses" or "Mass", depending on what we found above
         else:
             self.S_mass = readsnap(filename, "MASS", ptype=4, quiet=True)[ids] * 1.0e10 / head.HubbleParam  # in M_sun
         if filename[-4:]=='hdf5':
-            self.S_metal = readsnap(filename, "Metallicity", ptype=4, quiet=True)[:,0] # note this is only for SIMBA simulation
+            if head.F_Metals > 1:
+                self.S_metal = readsnap(filename, GFM_string + "Metallicity", ptype=4, quiet=True)[:,0] # note this is only for SIMBA simulation
+            else:
+                self.S_metal = readsnap(filename, GFM_string + "Metallicity", ptype=4, quiet=True)
+            
         else:
             self.S_metal = readsnap(filename, "Z   ", ptype=4, nmet=nmetal, quiet=True)
             
