@@ -18,7 +18,7 @@ def readsnapgd(filename, block, endian=None, quiet=True, longid=False, nmet=11,
         block: The block you want to read, e.g. "HEAD". Look for more info with block == "INFO"
         little endian: ">", big endian : "<", other/default : "=" or "@"
         longid: Is the particle ID saved in long long (uint64)? Default : False
-        nmet: Specify how many different matels are produced in the simulation, default: 11
+        nmet: Specify how many different metals are produced in the simulation, default: 11
         fullmass: return all mass of particles inorder of saved particle position
                   False(default): return only mass block
         mu: mean_molecular_weight. Specify this value for gas temperature.
