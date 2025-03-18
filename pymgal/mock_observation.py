@@ -16,21 +16,6 @@ from pymgal import utils
 import numba
 from multiprocessing import Pool
 
-# Generate n random projection vectors
-def random_projections(n_samples):
-    points = []
-    for _ in range(n_samples):
-        # Generate random point on unit sphere using spherical coordinates
-        theta = np.random.uniform(0, 2*np.pi)
-        phi = np.random.uniform(0, np.pi)
-
-        x = np.sin(phi) * np.cos(theta)
-        y = np.sin(phi) * np.sin(theta)
-        z = np.cos(phi)
-
-        points.append([round(x, 2), round(y, 2), round(z, 2)])
-    points = [np.array(element) for element in points]
-    return points
 
 def handle_input(config):
     # Handle some invalid inputs that aren't handled elsewhere
@@ -66,9 +51,6 @@ class MockObservation(object):
     mag_type      : If the user selected unit="magnitude", keep track of the type of magnitude (AB, vega, solar) in either apparent or absolute. Default: "AB".
                         If out_val != magnitude, this does nothing   
     proj_vecs     : A list of projection vectors. You can specify principal axes (i.e. “x”, “y”, or “z”) or provide custom vectors in Cartesian coordinates [x, y, z]. Default: "z"
-    proj_angs     : A list of angles [alpha, beta, gamma] (in degrees) used to rotate around the x, y, and z axes, respectively. Default: None
-                        This serves the same purpose as proj_vecs, so you can use either or both.
-    proj_rand     :  The number of random projection directions you want for your simulations.
     rest_frame    : If set to True, the results will be in the rest frame. Otherwise, they will be in the observer’s frame.
     AR            : Angular resolution. Type: arcsec. Default: None 
                          If AR is None and npx is auto, we will force the npx to be 512
@@ -91,12 +73,15 @@ class MockObservation(object):
                         If k=0, pymgal does not perform smoothing.
                         If k<0, throw an error.
     g_soft         : The gravitational softening length in kpc (physical), which is coverted into pixel values and used as the maximum number of pixels used for the gaussian kernel's 1 sigma.
+    psf            : A 2D array representing the point spread function used to convolve the image.
+                        If None, no PSF smoothing will be applied
     add_spec       : Do you want to include the spectrum of the particles? Default: False. If true, the spectrum of each particle will be added to the pixels in the observation.
     spec_res       : If add_spec is set to True, you can define the resolution of the output spectrum. Default: None
                      If None, the max resolution of the spectrum will be used. 
     ncpu           : The number of CPUs you want to use to parallelize the task
-    noise          : The level of Gaussian noise you want in your output maps in AB mag / arcsec^2. Default: None
-                        If given a float/int, the AB magnitude will be converted to the appropriate output unit and added as Gaussian noise
+    noise          : An array [mag_lim, SNR, r_ap] representing the level of Gaussian noise, where mag_lim is a limiting AB magnitude, SNR is the signal/noise ratio, and r_ap is the aperture radius in arcsec
+                     Defined as a limiting AB magnitude "mag_lim" at a chosen signal-to-noise ratio "SNR" for a chosen circular aperture radius r_ap. Default: None (i.e. no noise is added)
+                        If given an array [mag_lim, SNR, r_ap], the input will be converted to the appropriate noise level and added as Gaussian noise
     outmas         : do you want to output stellar mass? Default: False.
                          If True, the stellar mass in each pixel are saved.
     outage         : do you want to out put stellar age (mass weighted)? Default: False.
@@ -116,14 +101,13 @@ class MockObservation(object):
             "out_val": "flux",
             "mag_type": "AB",
             "proj_vecs": "z",
-            "proj_angs": None,
-            "proj_rand": 0,
             "rest_frame": True,
             "AR": 1.2,
             "npx": 512,
-            "z_obs": 0.1,
+            "z_obs": None,
             "ksmooth": 100,
             "g_soft": None,
+            "psf": None,
             "add_spec": False,
             "spec_res": None,
             "p_thick": None,
@@ -132,7 +116,7 @@ class MockObservation(object):
             "outmas": True,
             "outage": False,
             "outmet": False,
-            "quiet": True
+            "quiet": False
         }
 
         # If params is not provided, use the default values
@@ -172,13 +156,29 @@ class MockObservation(object):
                 return True
         return False
 
+            
+    def get_seds(self):
+        # Check if magnitudes need to be recomputed
+        if self.mag is None or self.params_changed():
+            self.get_mags()
+
+        return self.seds
+
+    def get_simdata(self):
+        simd_dict = {
+            "coords": self.simd.S_pos,
+            "mass": self.simd.S_mass,
+            "age": self.simd.S_age,
+            "metal": self.simd.S_metal,
+        }
+        return simd_dict
+    
 
     def get_mags(self):
         """
         Prepare the data needed for projections, based on the initialized parameters.
         """
         dustf = self.params["dustf"]
-        z_obs = self.params["z_obs"]
 
         # Prepare the SSP model and filters
         self.params["model"].quiet = self.params["quiet"]   # Suppress print statements if the user wishes
@@ -187,21 +187,22 @@ class MockObservation(object):
 
         # Compute magnitudes
         is_vega = self.params["mag_type"].lower().startswith('vega')
-        mag = filters_list.calc_energy(sspmod, self.simd, dust_func=dustf, vega=is_vega, unit=self.params["out_val"], rest_frame=self.params["rest_frame"], noise=self.params["noise"], redshift=z_obs, outspec_res=self.params["spec_res"])
+        mag = filters_list.calc_energy(sspmod, self.simd, dust_func=dustf, vega=is_vega, unit=self.params["out_val"], rest_frame=self.params["rest_frame"], noise=self.params["noise"], redshift=self.simd.redshift, outspec_res=self.params["spec_res"])
 
         # Store the precomputed attributes
         self.mag = mag
         self.sspmod = sspmod
-        self.spectrum = filters_list.spectrum
+        self.seds = filters_list.spectrum
         
         self.noise_dict = filters_list.noises
         self.stored_params = self.params.copy()  # Store the current configuration
+        return self.mag
 
     def project_worker(self, proj_direc, output_dir, lsmooth=None, spectrum=None):
         if not self.params["quiet"]:
             print("Projecting to:", proj_direc)
         pj = projection(self.mag, self.simd, npx=self.params["npx"], unit=self.params["out_val"], AR=self.params["AR"], redshift=self.params["z_obs"], p_thick=self.params["p_thick"],
-                           axis=proj_direc, mag_type=self.params["mag_type"], ksmooth=self.params["ksmooth"], lsmooth=lsmooth, noise=self.noise_dict, spectrum=spectrum, outmas=self.params["outmas"], 
+                           axis=proj_direc, mag_type=self.params["mag_type"], ksmooth=self.params["ksmooth"], lsmooth=lsmooth, psf=self.params["psf"], noise_dict=self.noise_dict, spectrum=spectrum, outmas=self.params["outmas"], 
                            outage=self.params["outage"], outmet=self.params["outmet"])
  
         if isinstance(proj_direc, np.ndarray):
@@ -221,9 +222,7 @@ class MockObservation(object):
         if self.mag is None or self.params_changed():
             self.get_mags()
         
-        spectrum = self.spectrum if self.params["add_spec"] else None
-        if (self.params["ksmooth"] > 0 and self.params["add_spec"]) or (self.params["noise"] is not None and self.params["add_spec"]):
-            raise ValueError("Spectrum is not supported for projections with noise or with smoothing. Please change your settings and try again.")
+        spectrum = self.seds if self.params["add_spec"] else None
   
         lsmooth=None
         # Optionally compute kNN distances for smoothing
@@ -232,19 +231,17 @@ class MockObservation(object):
         else:
             lsmooth = None
 
-        proj_rand = self.params["proj_rand"]
+    
         proj_vecs = self.params["proj_vecs"] if isinstance(self.params["proj_vecs"], list) else [self.params["proj_vecs"]]
-        # Get projection vectors and angles
-        chosen_proj_vecs = [np.array(v) if isinstance(v, list) else v for v in proj_vecs] if proj_vecs else []
-        random_proj_vecs = random_projections(proj_rand)
+
+        # Get projection vectors
+        projections = [np.array(v) if isinstance(v, list) else v for v in proj_vecs] if proj_vecs else []
         
-        # Set up projection list
-        projections = chosen_proj_vecs + random_proj_vecs
  
         if not projections:
-            raise ValueError("Please provide projection vectors or set num_random_proj.")
+            raise ValueError("Please provide projection vectors.")
  
-        worker_args = [(proj_direc, output_dir, lsmooth, spectrum) for proj_direc in proj_vecs]
+        worker_args = [(proj_direc, output_dir, lsmooth, spectrum) for proj_direc in projections]
 
         # Use multiprocessing to parallelize the project_worker calls
         with Pool(self.params["ncpu"]) as pool:
