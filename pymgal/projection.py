@@ -10,7 +10,7 @@ from pymgal import __version__
 from numba import njit, prange
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pymgal import utils
-
+from scipy.signal import convolve2d
 
 
 # Cache the kernels to avoid recomputation and significantly improve runtime
@@ -131,7 +131,9 @@ class projection(object):
     lsmooth : An array of floats where each float is the smoothing length (ie kNN distance) for a given particle.
                 Default: None, but can be set to a precomputed array to avoid redundant calculations.
     g_soft  : The gravitational softening length in kpc (physical), which is coverted into pixel values and used as the maximum number of pixels used for the gaussian kernel's 1 sigma.
-    noise   : The noise level in Lsun/arcsec^2
+    psf     : A 2D array representing the point spread function used to convolve the image.
+                If None, no PSF smoothing will be applied
+    noise_dict   : A dictionary of noise values for each filter
     spectrum: The spectrum calculated in filters.calc_mag. Default: None.
                 If None, no spectrum will be output.
     outmas  : do you want to output stellar mass? Default: False.
@@ -151,7 +153,7 @@ class projection(object):
     """
 
     def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, p_thick=None,
-                 SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=5, noise=None, 
+                 SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=5, psf=None, noise_dict=None, 
                  outmas=False, outage=False, outmet=False, spectrum=None):
 
         self.axis = axis
@@ -171,11 +173,12 @@ class projection(object):
         self.flux = unit
         self.mag_type = mag_type
         self.g_soft = g_soft / simd.cosmology.h / (1.+ simd.redshift) if g_soft is not None else None  # to physical in simulation time
+        self.psf = psf
         self.omas = outmas
         self.oage = outage
         self.omet = outmet
         self.ksmooth = ksmooth
-        self.noise = noise
+        self.noise_dict = noise_dict
         self.spectrum = spectrum
         if ksmooth < 0:
             raise ValueError("ksmooth should be a non-negative integer")
@@ -186,7 +189,8 @@ class projection(object):
         if p_thick is not None:
             self.p_thick /= (simd.cosmology.h / (1.+ simd.redshift))
         self.outd = {}
-
+        if psf is not None and (not isinstance(psf, (list, np.ndarray)) or np.ndim(psf) != 2 or np.shape(psf)[0] != np.shape(psf)[1]):
+            raise ValueError("psf must be either None or a square 2D array/list.")
         self._prep_out(data, simd)
 
     def _prep_out(self, d, s):
@@ -360,8 +364,12 @@ class projection(object):
                 ids = (x_bins==0) | (x_bins==self.npx+1) | (y_bins==0) | (y_bins==self.npx+1)
                 # Use np.add.at for fast accumulation
                 np.add.at(self.outd['sed'], (x_bins[~ids]-1, y_bins[~ids]-1), self.spectrum['sed'][~ids])
-                
                 self.outd['vs'] = self.spectrum['vs']
+                
+                seds_dict = {i: self.spectrum['sed'][:, i] for i in range(self.spectrum['sed'].shape[1])}            # Convert brightnes values {nu_index: sed} dict to pass it to gaussian_smoothing()
+                smoothed_seds = gaussian_smoothing(lsmooth, seds_dict, sample_hist, x_bins, y_bins, self.pxsize)     # Perform smoothing
+                self.outd['sed']  = np.stack([smoothed_seds[i] for i in sorted(smoothed_seds.keys())], axis=-1)      # Convert back to array
+                
 
             if self.omas or self.oage or self.omet:
                 max_sigma = self.g_soft/self.pxsize if self.g_soft is not None else None # Set the max standard deviation for the smoothing gaussian to be no more than the gravitational softening length of 5 kpc/h
@@ -381,21 +389,35 @@ class projection(object):
                     met_hist[ids] /= mass_hist[ids]  
                     self.outd["Metal"] =  met_hist      
 
-        pixel_area = (self.ar * 3600) ** 2 # Convert AR back to units from deg and compute the area of a pixel in arcsec^2
-        #print(pixel_area, self.noise * pixel_area)
-        if self.noise is not None:  # noise for spectrum need to be added in the filters.py file
+        #pixel_area = (self.ar * 3600) ** 2 # Convert AR back to units from deg and compute the area of a pixel in arcsec^2
+        
+        if self.noise_dict is not None:  # noise for spectrum need to be added in the filters.py file
             for i in dt.keys():
-                noise_stdev = self.noise[i]
-                if noise_stdev is None:
+                mag_lim, snr, r_ap_px = self.noise_dict[i][0], self.noise_dict[i][1], self.noise_dict[i][2] / self.ar   # Recall that each noise array contains [mag_lim, SNR, r_ap], also convert r_ap from arcsec to pixels
+                if mag_lim is None:      # Verify that mag_lim is not provided as None
                     continue
+                
                 if self.flux == "magnitude":
                     lum_noise = 10**(noise_stdev/-2.5)
                     lum_vals = 10**(self.outd[i]/-2.5)
-                    
-                    lum_vals += np.random.normal(loc=0.0, scale=lum_noise * pixel_area, size=self.outd[i].shape)
+                    lum_vals += np.random.normal(loc=0.0, scale= lum_noise / (snr * np.pi**0.5 * r_ap_px), size=self.outd[i].shape)  # sigma for noise = F / (SNR * sqrt(pi) * r_ap)
                     self.outd[i] = -2.5 * np.log10(lum_vals) 
                 else:
-                    self.outd[i] += np.random.normal(loc=0.0, scale=noise_stdev * pixel_area, size=self.outd[i].shape)
+                    self.outd[i] += np.random.normal(loc=0.0, scale= mag_lim / (snr * np.pi**0.5 * r_ap_px), size=self.outd[i].shape)
+
+        
+        if self.psf is not None:
+
+            # Apply PSF convolution to all filters, including potentially mass/age/met maps and spectra if they are being output
+            for i in self.outd.keys():
+                if i == "vs":       # Skip, since convolving the frequencies of the SEDs makes no sense
+                    continue
+                elif i == "sed":    # Iterate through the frequency layers of the SED and convolve each "slice"
+                    for j in range(self.outd[i].shape[2]):  
+                        self.outd[i][:, :, j] = convolve2d(self.outd[i][:, :, j], self.psf, mode='same', boundary='symm')
+                else:
+                    self.outd[i] = convolve2d(self.outd[i], self.psf, mode='same', boundary='symm')
+                    
 
     def write_fits_image(self, fname, comments='None', overwrite=False):
         r"""
