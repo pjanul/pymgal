@@ -757,12 +757,12 @@ def readsnap(filename, block, endian=None, quiet=True, longid=False, nmet=11, to
 
     For the gadget2 snapshots files, please check the order of the reading is correct or not (line 296-324) for you data.
     """
-
+    
     if path.isfile(filename): ## only one simulation file
         filenum=1
         filename=[filename]
-    else:
-        filename=glob(filename+'*')
+    elif path.isdir(filename):
+        filename=sorted(glob(path.join(filename,'*')))
         filenum=len(filename)
         if len(filename) > 1:
             if '.hdf5' in ','.join(filename).lower():
