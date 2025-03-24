@@ -5,7 +5,7 @@ from pymgal import utils
 from scipy.interpolate import interp1d
 from scipy.integrate import simpson
 # from astropy.cosmology import FlatLambdaCDM
-#import time
+
 
 
 class filters(object):
@@ -296,7 +296,6 @@ class filters(object):
         
         vsn, sedn = sspmod.get_seds(simd, rest_frame=rest_frame, dust_func=dust_func)
         
-        #start_time = time.time()
         units=unit.lower() # case insensitive
         
         # If we want to get rid of the Hz dependence, convert to erg/s
