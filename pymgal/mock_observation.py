@@ -1,8 +1,8 @@
 import numpy as np
 from astropy.io import fits
 import os, sys
-from os.path import dirname, abspath
 import argparse
+from glob import glob
 import yaml
 import re
 from pymgal.readsnapsgl import readsnap
@@ -97,6 +97,7 @@ class MockObservation(object):
         defaults = {
             "model": SSP_models('bc03', IMF='chab', has_masses=True),
             "dustf": None,
+            "los_dust": False,
             "filters": ["sdss_r"],
             "out_val": "flux",
             "mag_type": "AB",
@@ -129,10 +130,20 @@ class MockObservation(object):
         # Assign essential attributes
         self.sim_file = sim_file
         self.coords = coords
+
+        if os.path.isdir(self.sim_file):
+            self.sim_file = sorted(glob(os.path.join(self.sim_file,'*')))[0]
+
+        # Remove .hdf5 if an hdf5 file and remove the .X if the snapshot is split into parts (eg snap_100.0.hdf5 -> snap_100)
         self.snapname = os.path.basename(self.sim_file).replace('.hdf5', '') if ".hdf5" in os.path.basename(self.sim_file) else os.path.basename(self.sim_file)
-        self.simd = load_data(self.sim_file, snapshot=True, center=self.coords[:3], radius=self.coords[-1])
+        self.snapname = re.sub(r'\.\d+$', '', self.snapname) if re.search(r'\.\d+$', self.snapname) else self.snapname
+        
+        self.simd = load_data(self.sim_file, snapshot=True, read_gas=self.params["los_dust"], center=self.coords[:3], radius=self.coords[-1])
         if not self.params["quiet"]:
             print("Snapshot file successfully read:", self.sim_file)
+            if len(self.simd.S_pos) == 0:
+                raise ValueError("Found no stellar particles within the selected region. Now exiting PyMGal. Please try again with different coordinates and/or a larger radius.")
+            
        
         # Initialize magnitudes as None since they have not yet been computed
         self.mag = None
@@ -179,15 +190,23 @@ class MockObservation(object):
         Prepare the data needed for projections, based on the initialized parameters.
         """
         dustf = self.params["dustf"]
+        min_redshift = max(0.05, self.simd.redshift)
 
         # Prepare the SSP model and filters
         self.params["model"].quiet = self.params["quiet"]   # Suppress print statements if the user wishes
         sspmod = self.params["model"] # Initialize
         filters_list = filters(f_name=self.params["filters"])
 
+        if not self.params["quiet"]:
+            if np.min(self.simd.S_metal) < np.min(sspmod.metals):
+                print("WARNING: The minimum metallicity found in the snapshot's stellar particles is lower than the minimum metallicity of your SSP model. This will cause a bias in low-metallicity particles. Consider adding SSP models with lower metallicity.")
+            if np.max(self.simd.S_metal) > np.max(sspmod.metals):
+                print("WARNING: The maximum metallicity found in the snapshot's stellar particles is higher than the maximum metallicity of your SSP model. This will cause a bias in high-metallicity particles. Consider adding SSP models with higher metallicity.")
+       
+             
         # Compute magnitudes
         is_vega = self.params["mag_type"].lower().startswith('vega')
-        mag = filters_list.calc_energy(sspmod, self.simd, dust_func=dustf, vega=is_vega, unit=self.params["out_val"], rest_frame=self.params["rest_frame"], noise=self.params["noise"], redshift=self.simd.redshift, outspec_res=self.params["spec_res"])
+        mag = filters_list.calc_energy(sspmod, self.simd, dust_func=dustf, vega=is_vega, unit=self.params["out_val"], rest_frame=self.params["rest_frame"], noise=self.params["noise"], redshift=min_redshift, outspec_res=self.params["spec_res"])
 
         # Store the precomputed attributes
         self.mag = mag
@@ -201,8 +220,8 @@ class MockObservation(object):
     def project_worker(self, proj_direc, output_dir, lsmooth=None, spectrum=None):
         if not self.params["quiet"]:
             print("Projecting to:", proj_direc)
-        pj = projection(self.mag, self.simd, npx=self.params["npx"], unit=self.params["out_val"], AR=self.params["AR"], redshift=self.params["z_obs"], p_thick=self.params["p_thick"],
-                           axis=proj_direc, mag_type=self.params["mag_type"], ksmooth=self.params["ksmooth"], lsmooth=lsmooth, psf=self.params["psf"], noise_dict=self.noise_dict, spectrum=spectrum, outmas=self.params["outmas"], 
+        pj = projection(self.mag, self.simd, los_dust=self.params["los_dust"], npx=self.params["npx"], unit=self.params["out_val"], AR=self.params["AR"], redshift=self.params["z_obs"], p_thick=self.params["p_thick"],
+                           axis=proj_direc, mag_type=self.params["mag_type"], ksmooth=self.params["ksmooth"], g_soft=self.params["g_soft"], lsmooth=lsmooth, psf=self.params["psf"], noise_dict=self.noise_dict, spectrum=spectrum, outmas=self.params["outmas"], 
                            outage=self.params["outage"], outmet=self.params["outmet"])
  
         if isinstance(proj_direc, np.ndarray):
