@@ -497,42 +497,60 @@ def read_ised(file):
 
 def numba_interp1d(x, y):
     """
-    Returns a function that performs linear interpolation manually with Numba acceleration.
-     
+    Returns a function that performs linear interpolation with Numba acceleration,
+    matching scipy's interp1d behavior with bounds_error=False and fill_value="extrapolate".
+    
     Parameters:
-      - x: 1D array of known x data.
-      - y: N-D array of known y data (interpolation happens along the first axis).
-
+      - x: 1D array of known x data (must be sorted).
+      - y: 2D array of known y data (interpolation happens along axis=1).
+    
     Returns:
-      - A function that takes xnew as input and returns the interpolated y values at xnew positions.
+      - A function that takes an array xnew and returns the interpolated y values.
     """
     @njit(parallel=True)
     def interp_function(xnew):
-        ynew = np.empty((y.shape[0], len(xnew)), dtype=y.dtype)
+        npts = len(xnew)
+        ynew = np.empty((y.shape[0], npts), dtype=y.dtype)
+        for i in prange(npts):
+            xi = xnew[i]
+            # Extrapolation: use first interval if xi is below the known range
+            if xi < x[0]:
+                j = 0
+                t = (xi - x[0]) / (x[1] - x[0])
+            # Extrapolation: use last interval if xi is above the known range
+            elif xi > x[-1]:
+                j = len(x) - 2
+                t = (xi - x[-2]) / (x[-1] - x[-2])
+            else:
+                # xi is within the known range.
+                # Special case: if xi exactly equals the last x value, then return y[:, -1]
+                if xi == x[-1]:
+                    j = len(x) - 2
+                    t = 1.0
+                else:
+                    # Find the interval such that x[j] <= xi < x[j+1]
+                    for j_temp in range(len(x) - 1):
+                        if xi >= x[j_temp] and xi < x[j_temp+1]:
+                            j = j_temp
+                            t = (xi - x[j]) / (x[j+1] - x[j])
+                            break
 
-        for i in range(len(xnew)):
-            # Find the interval x[j] <= xnew[i] < x[j+1]
-            for j in range(len(x) - 1):
-                if xnew[i] >= x[j] and xnew[i] <= x[j+1]:
-                    # Linear interpolation formula
-                    t = (xnew[i] - x[j]) / (x[j+1] - x[j])
-                    ynew[:, i] = (1 - t) * y[:, j] + t * y[:, j+1]
-                    break
- 
+            # Compute linear interpolation (or extrapolation)
+            for k in range(y.shape[0]):
+                ynew[k, i] = (1 - t) * y[k, j] + t * y[k, j+1]
         return ynew
- 
     return interp_function
 
 
-@njit(parallel=True)
-def handle_seds(seds, interp_data, S_mass, ids):
-    for i in prange(seds.shape[0]):
-        tmpd = interp_data[i] * S_mass[i]
-        seds[i, ids] = tmpd
+@njit
+def scale_seds(seds, S_mass, ids):
+    seds[:, ids] *= S_mass[ids]
+    return seds
 
-@njit(parallel=True)
+@njit
 def apply_dust(seds, ids, dust_arr):
     seds[:, ids] *= dust_arr
+    return seds
 
 # Create kD tree and extract the distance of the kth nearest neighbour (kth distance = 1 sigma of gaussian kernel)
 def knn_distance(positions, k):
