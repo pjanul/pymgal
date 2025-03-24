@@ -1,7 +1,7 @@
 import numpy as np
 from pymgal import utils
-from numba import njit
-import time
+from numba import njit, prange
+
 
 
 
@@ -103,3 +103,46 @@ class calzetti(object):
 
 
 
+@njit(parallel=True)   # Numba drastically speeds this up,
+def gas_masses_los(g_xbins, g_ybins, g_depth, s_xbins, s_ybins, s_depth, gmass):
+    """
+    Compute the number of gas particles in front of each stellar particle along the line of sight using Numba.
+    
+    Parameters:
+    g_xbins, g_ybins, g_depth: 1D arrays of gas particle coordinates
+    s_xbins, s_ybins, s_depth: 1D arrays of stellar particle coordinates
+    gmass: 1D array of gas particle masses
+    
+    Returns:
+    m_gas: 1D array where m_gas[i] is the total mass of gas particles in front of the i-th stellar particle.
+    """
+    m_gas = np.zeros(len(s_xbins), dtype=np.float64)
+    
+    for i in prange(len(s_xbins)):
+        count = 0
+        mass_sum = 0.0
+        for j in range(len(g_xbins)):
+            if g_xbins[j] == s_xbins[i] and g_ybins[j] == s_ybins[i] and g_depth[j] < s_depth[i]:
+                count += 1
+                mass_sum += gmass[j]
+        m_gas[i] = mass_sum
+    
+    return m_gas
+
+
+def optical_depth(m_gas, area, kappa=0.2):
+    """
+    Determine the optical depth associated with a stellar particle based on the gas mass between it and the observer
+    Parameters:
+    m_gas: An array of all gas masses in the line of sight of each stellar particle. IMPORTANT: This must be in grams
+    area:  The area associated associated with the line of sight, which is equal to one pixel area. IMPORTANT: This must be in cm^2
+    kappa: The opacity of the medium along the line of sight, usually derived from properties of gas particles. IMPORTANT: This must be in cm^2/g
+
+    Returns:
+    The optical depth tau = integral kappa*rho ds = kappa * m_gas / area
+    """
+    taus = np.zeros(len(m_gas), dtype=np.float64)
+    taus = np.where(area > 0, (m_gas / area) * kappa, 0.0)
+
+        
+    return taus
