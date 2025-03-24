@@ -10,6 +10,7 @@ from pymgal import __version__
 from numba import njit, prange
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pymgal import utils
+from pymgal import dusts
 from scipy.signal import convolve2d
 
 
@@ -153,8 +154,8 @@ class projection(object):
     """
 
     def __init__(self, data, simd, axis="z", npx=512, AR=None, redshift=None, p_thick=None,
-                 SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=5, psf=None, noise_dict=None, 
-                 outmas=False, outage=False, outmet=False, spectrum=None):
+                 SP=None, unit='flux', mag_type="", ksmooth=0, lsmooth=None, g_soft=None, psf=None, noise_dict=None, 
+                 outmas=False, outage=False, outmet=False, spectrum=None, los_dust=True):
 
         self.axis = axis
         if isinstance(npx, type("")) or isinstance(npx, type('')):
@@ -180,6 +181,8 @@ class projection(object):
         self.ksmooth = ksmooth
         self.noise_dict = noise_dict
         self.spectrum = spectrum
+        self.los_dust = los_dust
+        self.N_gas =  np.array([])   # the number of gas particles in front of each stellar particle
         if ksmooth < 0:
             raise ValueError("ksmooth should be a non-negative integer")
         if g_soft is not None and g_soft <= 0:
@@ -206,6 +209,10 @@ class projection(object):
         ages = s.S_age
         metals = s.S_metal
 
+        gpos = np.copy(s.G_pos) / s.cosmology.h / (1.+ s.redshift) if self.los_dust else None # convert gas to physical to match positions of stellar particles
+        gpos = gpos - self.cc / s.cosmology.h / (1.+ s.redshift) if self.los_dust else gpos
+        
+
         # If you're given a projection vector array, convert it to an angle
         if isinstance(self.axis, type(np.array([]))) and len(self.axis.shape) == 1 and len(self.axis) == 3:
             vector = np.array(self.axis, dtype=float)
@@ -217,8 +224,10 @@ class projection(object):
         if isinstance(self.axis, type('')):
             if self.axis.lower() == 'y':  # x-z plane
                 pos = pos[:, [0, 2, 1]]
+                gpos = gpos[:, [0, 2, 1]] if self.los_dust else gpos
             elif self.axis.lower() == 'x':  # y - z plane
                 pos = pos[:, [2, 1, 0]]
+                gpos = gpos[:, [2, 1, 0]] if self.los_dust else gpos
             else:
                 if self.axis.lower() != 'z':  # project to xy plane
                     raise ValueError("Do not accept this value %s for projection" % self.axis)
@@ -237,6 +246,7 @@ class projection(object):
                      [cb * sg, ca * cg + sa * sb * sg, ca * sb * sg - cg * sa],
                      [-sb,     cb * sa,                ca * cb]], dtype=np.float64)
                 pos = np.dot(pos, Rxyz)
+                gpos = np.dot(gpos, Rxyz) if self.los_dust else gpos
             else:
                 raise ValueError(
                     "Do not accept this value %s for projection" % self.axis)
@@ -248,6 +258,9 @@ class projection(object):
             ids = (pos[:, 2] > -self.p_thick) & (pos[:, 2] < self.p_thick)
             old_pos_size = len(pos) # keep track of the number of particles we had before we cut the z thick 
             pos = pos[ids]
+
+            gas_ids = (gpos[:, 2] > -self.p_thick) & (gpos[:, 2] < self.p_thick) if self.los_dust else None
+            gpos = gpos[gas_ids] if self.los_dust else gpos
             lsmooth = lsmooth[ids] if lsmooth is not None else None
             masses = masses[ids]
             ages = ages[ids]
@@ -290,7 +303,21 @@ class projection(object):
         x_bins = np.digitize(pos[:, 0], xx)                                                     # define x and y bins
         y_bins = np.digitize(pos[:, 1], yy)
 
-
+        mid_xpx = np.int32((len(xx) - 1)/2)
+        mid_ypx = np.int32((len(yy) - 1)/2)
+        
+        if np.all((x_bins > mid_xpx) | (x_bins < -mid_xpx)) or np.all((y_bins > mid_ypx) | (y_bins < -mid_ypx)):
+            print("WARNING: PyMGal found particles within the specified region, but they do not fit within the field of view of the output image. If an empty image is produced, consider either expanding your field of view or modifying the coordinates of your projection.")
+        
+        if self.los_dust:
+            x_bins_gas = np.digitize(gpos[:, 0], xx) 
+            y_bins_gas = np.digitize(gpos[:, 1], yy) 
+            gas_depth =  gpos[:, 2] 
+            star_depth = pos[:, 2]
+            px_area_cm = utils.convert_length(self.pxsize , incoming='kpc', outgoing='cm') ** 2
+            m_gas_grams = dusts.gas_masses_los(x_bins_gas, y_bins_gas, gas_depth, x_bins, y_bins, star_depth, s.G_mass)  * 1.989e33
+            self.taus = dusts.optical_depth(m_gas_grams, px_area_cm)
+            
         
         #self.cc = center  # real center in the data
         # If smoothing is set to off
