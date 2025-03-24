@@ -4,7 +4,7 @@ import re
 from scipy.interpolate import interp1d
 import numpy as np
 import astropy.io.fits as pyfits
-
+from pymgal import dusts
 
 class SSP_models(object):
     r""" Load simple stellar population models.
@@ -124,6 +124,7 @@ class SSP_models(object):
         self._load(model_file, IMF, is_ised=is_ised, is_fits=is_fits,
                    is_ascii=is_ascii, has_masses=has_masses, units=units,
                    age_units=age_units)
+
     
     def _load(self, model_file, IMF, is_ised=False, is_fits=False,
               is_ascii=False, has_masses=False, units='a', age_units='gyrs'):
@@ -189,7 +190,7 @@ class SSP_models(object):
         # first check file path
         files = []
         metals = []
-        for filen in os.listdir(self.model_dir):
+        for filen in sorted(os.listdir(self.model_dir)):
             curr_imf = filen.split(".")[-2][-4:]  # Get the current IMF name by taking the last four characters before the file extension
             if (filen[:len(file)] == file) and (curr_imf == IMF):
                 filemet = np.float64(filen.split("_")[-2])
@@ -267,6 +268,7 @@ class SSP_models(object):
                 if 'has_mass' in fits[2].header and fits[2].header['has_mass']:
                     self.has_masses = True
                     self.masses[self.met_name[i]] = fits[2].data.field('masses')
+                   
                 # and sfh?
                 if 'has_sfh' in fits[2].header and fits[2].header['has_sfh']:
                     self.sfh[self.met_name[i]] = fits[2].data.field('sfh')
@@ -367,42 +369,43 @@ class SSP_models(object):
         # We do not do 2D interpolation since there is only several metallicity
         # in the models.
         if self.nmets > 1:
-            mids = np.interp(simdata.S_metal, self.metals, np.arange(self.nmets))
+            mids = np.interp(simdata.S_metal, self.metals, np.arange(self.nmets))   # Metals need to be sorted from smallest to biggest
             mids = np.int32(np.round(mids))
 
         for i, metmodel in enumerate(self.met_name):
-            if not self.quiet:
-                print('Interpolating metallicity Z =', metmodel)
-            #start_time = time.time()
             if self.nmets > 1:
                 ids = np.where(mids == i)[0]
             else:
                 ids = np.ones(simdata.S_metal.size, dtype=bool)
 
-            if ids.size > 1:
-                Ns = np.int32(ids.size)
-            else:
-                if not self.quiet:
-                    print(f"# WARNING: Found {ids.size} particles at this metallicity, which is smaller than the number of CPUs.")
-                Ns = 1  # more cpu than particles
-            # Lst = np.arange(0, ids.size, Ns)
-            # Lst = np.append(Lst, ids.size)
+            if not self.quiet:
+                print(f'Interpolating metallicity Z = {metmodel}. Found {np.int32(ids.size)} particle(s).')
 
+            
+            # Scipy interpolation should produce exactly the same answers that numba does, but we can leave it as a comment just in case
             #intp=interp1d(self.ages[metmodel], self.seds[metmodel], axis=1, bounds_error=False, fill_value="extrapolate")
-            #seds[:, ids] = intp(simdata.S_age[ids])*simdata.S_mass[ids]
+            #seds[:, ids] = intp(simdata.S_age[ids])
+            #seds[:, ids] *= simdata.S_mass[ids]
 
+            
             ages_array = np.asarray(self.ages[metmodel], dtype='<f8')
-            seds_array = np.asarray(self.seds[metmodel], dtype='<f8')
+            seds_array = np.asarray(self.seds[metmodel], dtype='<f8') 
             sim_ages_array = np.asarray(simdata.S_age, dtype='<f8')
             sim_masses_array = np.asarray(simdata.S_mass, dtype='<f8')
 
-            tmpd = utils.numba_interp1d(ages_array, seds_array)(sim_ages_array[ids]) 
-            utils.handle_seds(seds, tmpd, sim_masses_array[ids], ids)  # A function that multiplies tmpd by sim masses and then updates "seds" to the right values
+            
+            # Handle with numba for faster results
+            intp = utils.numba_interp1d(ages_array, seds_array)
+            seds[:, ids] = intp(simdata.S_age[ids])
+            seds = utils.scale_seds(seds, simdata.S_mass, ids)  # Multiply SEDs by mass using numba, which makes it several times faster
+            
+            
             ls_metmodel = self.ls[metmodel]
+  
          
             if dust_func is not None:
                 dust_arr = dust_func(sim_ages_array[ids], ls_metmodel)
-                utils.apply_dust(seds, ids, dust_arr)
+                seds = utils.apply_dust(seds, ids, dust_arr)
 
         vs = np.copy(self.vs[self.met_name[0]])
         # Shift SEDs and frequencies if you're in the rest frame
