@@ -13,19 +13,21 @@ In most cases, the only API needed for PyMGal is the MockObservation object. Moc
 
 When defining the path to your snapshot data, there are two options. If your simulation data is contained in a single file (e.g. snap_XYZ.hdf5), you can simply include the path to this file. If it is split between several snapshot files (e.g. snap_XYZ.0.hdf5, snap_XYZ.1.hdf5), you should specify the directory where these files are contained. If you do this, make sure to include every piece of the snapshot in the directory and no unrelated files. 
 
-Once you initialize the object, you can calculate magnitudes of particles in your preferred output unit using the get_mags() function. You can also save projection files using the project() function. If you call project() before calling get_mags(), the magnitudes will automatically be calculated.
+Once you initialize the object, you can generate projection files using the project() function. You may also optionally get the magnitudes of stellar particles with the get_mags() function, spectral energy distributions (SEDs) with the get_seds() function, or the physical properties (e.g. positions, masses, ages, metallcities) with the get_simdata() function. 
+Here is a sample to get you started. 
 
-Here is a sample to get you started. If all goes well, you should see at least one newly formed snap_{XYZ}-{proj_angle}-{filter}.fits file in your output directory.
+```python
+from pymgal import MockObservation
 
-.. code-block:: python
+obs = MockObservation("/path/to/snapshot", [x_c, y_c, z_c, r])   
+obs.params["out_val"] = "luminosity"         # This is how you modify parameters
+obs.get_mags()                               # If you want to get the magnitudes of stellar particles in different filters
+obs.get_seds()                               # If you want to get the spectral energy distributions (SEDs) of stellar particles
+obs.get_simdata()                            # If you want to get the positions, masses, ages, and metallicities of stellar particles
+obs.project("/path/to/output")               # To generate and save the mock observation  
+```
 
-   from pymgal import MockObservation
-
-   obs = MockObservation("/path/to/snapshot", [x_c, y_c, z_c, r])   
-   obs.params["out_val"] = "luminosity"
-   obs.get_mags()
-   obs.project("/path/to/output")
-
+Note that after the SEDs have been calculated, you can modify many of these parameters (e.g. obs.params["proj_vecs"] = "y") without needing to recalculate the SEDs. This can save compute time. Note that this only works for parameters that are not directly involved in calculating SEDs such as projection effects.
 
 List of parameters
 -------------
