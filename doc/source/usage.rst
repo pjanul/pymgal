@@ -56,6 +56,7 @@ There are many different parameters you can modify for your magnitude calculatio
                "ksmooth": 100,
                "g_soft": None,
                "p_thick": None,
+               "psf": None,
                "add_spec": False,
                "spec_res": None,
                "ncpu": 16,
@@ -111,6 +112,9 @@ This document describes the various parameters used in PyMGal for generating opt
 
 - **p_thick**:  
     **Type: int.** The thickness cut (in kpc/h) along the projection direction. This cut is applied as `[center-p_thick, center+p_thick]`. If set to None, no cut is applied, and all particles are used.
+
+- **psf**:  
+    **Type: list.** A square list/array representing the point spread function (PSF) you want to use to convolve your output images to mimic instrumental effects. If None, no PSF is applied.
     
 - **add_spec**:  
     **Type: bool.** Do you want to output the spectrum of your observation for your choice of axes? If set to True, the spectrum will be written to a fits file. 
