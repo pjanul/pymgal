@@ -77,13 +77,13 @@ This document describes the various parameters used in PyMGal for generating opt
     **Type: pymgal.SSP_model object.** The stellar population model you want to assume. PyMGal supports various types of models depending on your scientific goals. For more details, see :ref:`SSP Models <ssp_models>`.
 
 - **dustf**:  
-    **Type: pymgal.dusts object.** dustsThe dust attenuation function used in the model. Options include no dust, charlot_fall (Charlot and Fall 2000), or calzetti (Calzetti et al. 2000). You can also define a custom function within the dusts.py file if needed. 
+    **Type: pymgal.dusts object.** The dust function used to dim the SEDs. Options include None (no dust), charlot_fall() (Charlot and Fall 2000), or calzetti() (Calzetti et al. 2000). You can also define a custom function within the dusts.py file if needed. 
 
 - **filters**:  
     **Type: list.** The telescope filters you want to mimic in your mock observations. For more details, see :ref:`Filters <filters>`
 
 - **out_val**:  
-    **Type: string or None.** The units for the output data. Options include `"luminosity`" (erg/s), `"Lsun`" (solar luminosities), `"flux"` (erg/s/cm^2), `"jy"` (Jansky), `"Fv"` (erg/s/cm^2/Hz), `"Fl"` (erg/s/cm^2/angstrom), or `"magnitude"`. This is case-insensitive.
+    **Type: string.** The units for the output data. Options include `"luminosity`" (erg/s), `"Lsun`" (solar luminosities), `"flux"` (erg/s/cm^2), `"jy"` (Jansky), `"Fv"` (erg/s/cm^2/Hz), `"Fl"` (erg/s/cm^2/angstrom), or `"magnitude"`. This is case-insensitive.
 
 - **mag_type**:  
     **Type: string.** If `out_val` is set to `"magnitude"`, this parameter specifies the magnitude type. Options are `"AB"`, `"vega"`, `"solar"`, `"AB_app"`, `"vega_app"`, or `"solar_app"`. If `out_val` is not `"magnitude"`, this parameter has no effect.
@@ -101,28 +101,28 @@ This document describes the various parameters used in PyMGal for generating opt
     **Type: int.** The number of pixels in the output image. You can also set this to `"auto"`, which will automatically decide the pixel number to include all particles.
     
 - **z_obs**:  
-    **Type: float or None.** The redshift of the observation from the observer's point of view. This parameter affects only the apparent distance, not age or evolution. If set to None, it defaults to `max(0.05, sim z)`.
+    **Type: float.** The redshift of the observation from the observer's point of view. This parameter affects only the apparent distance, not age or evolution. If set to None, it defaults to the same redshift as the simulation (unless the simulation redshift is z~0, in which case we set a minimum of z=0.05).
 
 - **ksmooth**:  
     **Type: int.**  Must be non-negative. A smoothing parameter used in kNN Gaussian smoothing. The larger the `ksmooth` value, the smoother the results. Setting ksmooth=0 will turn the smoothing feature off. 
 
 - **g_soft**:  
-    **Type: int or None.** The gravitational softening length of the simulation in comoving kpc/h. This limits smoothing for mass/age/metal maps. If set to None, mass/age/metal are smoothed similarly to light.
+    **Type: int.** The gravitational softening length of the simulation in comoving kpc/h. This limits smoothing for mass/age/metal maps. If set to None, mass/age/metal are smoothed similarly to light.
 
 - **p_thick**:  
-    **Type: int.** The thickness cut (in kpc/h) along the projection direction. This cut is applied as `[center-p_thick, center+p_thick]`. If set to `null`, no cut is applied, and all data is used.
+    **Type: int.** The thickness cut (in kpc/h) along the projection direction. This cut is applied as `[center-p_thick, center+p_thick]`. If set to None, no cut is applied, and all particles are used.
     
 - **add_spec**:  
     **Type: bool.** Do you want to output the spectrum of your observation for your choice of axes? If set to True, the spectrum will be written to a fits file. 
     
 - **spec_res**:  
-    **Type float.** If you chose `add_spec = True`, you can modify the spectral resolution here. Accepted values: float: (0, 1], or an array in wavelength for sampling with unit of Hertz. If `add_spec = False`, this does nothing.
+    **Type: float or array.** If you chose `add_spec = True`, you can modify the spectral resolution here. Accepted values: float: (0, 1], or an array in wavelength for sampling with unit of Hertz. If `add_spec = False`, this does nothing. If `spec_res = None`, the entire spectral range will be output.
 
 - **ncpu**:  
     **Type: int.** The number of CPUs used in parallel processing.
 
 - **noise**:  
-    **Type: list or None.** The noise level of Gaussian noise for your observations as a limiting AB mag at some specified signal to noise ratio within some specified circular aperture. Format: [mag_lim, SNR, r_aperture].
+    **Type: list.** The noise level of Gaussian noise for your observations as a limiting AB mag at some specified signal to noise ratio within some specified circular aperture. Format: [mag_lim, SNR, r_aperture]. If set to None, no noise will be applied.
 
 - **outmas**:  
     **Type: bool.** If `True`, the mass map corresponding to your data will be output.
