@@ -11,7 +11,7 @@ The MockObservation object
 
 In most cases, the only API needed for PyMGal is the MockObservation object. MockObservation objects require two mandatory parameters: the path to your snapshot data and the coordinates and radius of the region you want to consider. If you don't know the coordinates of your object, you'll probably need to obtain some catalogue data.
 
-When defining the path to your snapshot data, there are two options. If your simulation data is contained in a single file (e.g. snap_XYZ.hdf5), you can simply include the path to this file. If it is split between several snapshot files (e.g. snap_XYZ.0.hdf5, snap_XYZ.1.hdf5), you should specify the directory where these files are contained. If you do this, make sure to include every piece of the snapshot in the directory and no unrelated files. 
+When defining the path to your snapshot data, there are two options. If your simulation data is contained in a single file (e.g. snap_XYZ.hdf5), you can simply include the path to this file. If it is split between several snapshot files (e.g. snap_XYZ.0.hdf5, snap_XYZ.1.hdf5, etc), you should specify the directory where these files are contained. If you do this, make sure to include every piece of the snapshot in the directory and remove any unrelated files. 
 
 Once you initialize the object, you can generate projection files using the project() function. You may also optionally get the magnitudes of stellar particles with the get_mags() function, spectral energy distributions (SEDs) with the get_seds() function, or the physical properties (e.g. positions, masses, ages, metallcities) with the get_simdata() function. 
 Here is a sample to get you started. 
@@ -29,7 +29,7 @@ Here is a sample to get you started.
 
 
 
-Note that after the SEDs have been calculated, you can modify many of these parameters (e.g. obs.params["proj_vecs"] = "y") without needing to recalculate the SEDs. This can save compute time. Note that this only works for parameters that are not directly involved in calculating SEDs such as projection effects.
+After the SEDs have been calculated, you can modify many of these parameters (e.g. obs.params["proj_vecs"] = "y") without needing to recalculate the SEDs. This can save compute time. However, this only works for parameters that are not directly involved in calculating SEDs such as projection effects.
 
 List of parameters
 -------------
@@ -75,13 +75,13 @@ This document describes the various parameters used in PyMGal for generating opt
 
 
 - **model**:  
-    **Type: pymgal.SSP_model object.** The stellar population model you want to assume. PyMGal supports various types of models depending on your scientific goals. For more details, see :ref:`SSP Models <ssp_models>`.
+    **Type: class pymgal.SSP_models.** The stellar population model you want to assume. PyMGal supports various types of models depending on your scientific goals. For more details, see :ref:`SSP Models <ssp_models>`.
 
 - **dustf**:  
-    **Type: pymgal.dusts object.** The dust function used to dim the SEDs. Options include None (no dust), charlot_fall() (Charlot and Fall 2000), or calzetti() (Calzetti et al. 2000). You can also define a custom function within the dusts.py file if needed. 
+    **Type: class pymgal.dusts.** The dust function used to dim the SEDs. Options include None (no dust), charlot_fall() (Charlot and Fall 2000), or calzetti() (Calzetti et al. 2000). You can also define a custom dust function within the dusts.py file if needed. 
 
 - **filters**:  
-    **Type: list.** The telescope filters you want to mimic in your mock observations. For more details, see :ref:`Filters <filters>`
+    **Type: list.** The telescope filters you want to mimic in your mock observations. For more details, see :ref:`Filters <filters>`.
 
 - **out_val**:  
     **Type: string.** The units for the output data. Options include `"luminosity`" (erg/s), `"Lsun`" (solar luminosities), `"flux"` (erg/s/cm^2), `"jy"` (Jansky), `"Fv"` (erg/s/cm^2/Hz), `"Fl"` (erg/s/cm^2/angstrom), or `"magnitude"`. This is case-insensitive.
@@ -90,7 +90,7 @@ This document describes the various parameters used in PyMGal for generating opt
     **Type: string.** If `out_val` is set to `"magnitude"`, this parameter specifies the magnitude type. Options are `"AB"`, `"vega"`, `"solar"`, `"AB_app"`, `"vega_app"`, or `"solar_app"`. If `out_val` is not `"magnitude"`, this parameter has no effect.
     
 - **proj_vecs**:  
-    **Type: list.** A list of projection vectors. You can specify principal axes (i.e. "x", "y", or "z") or provide custom vectors in Cartesian coordinates [x, y, z]. Example usage: ["x", "y", "z", [0, -1, 0]]
+    **Type: list.** A list of projection vectors. You can specify principal axes (i.e. "x", "y", or "z") or provide custom vectors in Cartesian coordinates [x, y, z]. Example usage: ["x", "y", "z", [0, -1, 0]].
 
 - **rest_frame**:  
     **Type: bool.** If set to `True`, the magnitudes will be computed in the rest frame. Otherwise, they will be in the observer's frame.
