@@ -105,9 +105,16 @@ For more details on these, consult the EzGal paper. If you'd like to download Ez
 Dust attentuation functions
 ----------
 
-By default, PyMGal doesn't account for dust attenuation. If you want to add the effect of dust, you can use either the dust function described in Charlot and Fall (2000) or Calzetti et al. (2000). 
+If you want to model the effect of dust in the SEDs, PyMGal features two dust functions that are described in Charlot and Fall (2000) or Calzetti et al. (2000). You can call these functions by creating a dust object and passing it to a MockObservation. 
 
-If you want to code your own dust function, you should be able to add it to the dusts.py file and then call it when creating your MockObservation object.
+.. code-block:: python
+   
+   from pymgal import MockObservation, SSP_models, dusts
+
+   dust_func = dusts.calzetti()
+   obs = MockObservation("/path/to/snapshot", [x_c, y_c, z_c, r], params = {"dustf": dust_func})
+   
+ 
  
  
    
