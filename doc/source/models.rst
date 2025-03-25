@@ -102,7 +102,7 @@ For more details on these, consult the EzGal paper. If you'd like to download Ez
   
 .. _dust_funcs:
 
-Dust attentuation functions
+Dust functions
 ----------
 
 If you want to model the effect of dust in the SEDs, PyMGal features two dust functions that are described in Charlot and Fall (2000) or Calzetti et al. (2000). You can call these functions by creating a dust object and passing it to a MockObservation. 
