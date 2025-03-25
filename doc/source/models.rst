@@ -30,7 +30,7 @@ You may change this stellar population model to best fit your research goals. No
    
 .. _ssp_models_params:
 
-SSP_model parameters
+SSP_models parameters
 ----------
 
 The code below shows the full list of options for the SSP_models class, as well as how you can print its docstring for more details. 
