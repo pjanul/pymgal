@@ -1,10 +1,10 @@
 | You can create observations using any of the filters below. Many of the filters below are based off the list from python-FSPS (https://python-fsps.readthedocs.io/en/latest/filters/), so please give them credit where credit is due.
 
 
-| In addition to these FSPS filters, we have the 4star filters from EzGal, the Chinese Space Station Telescope (CSST), and the DESI filters (BASS_g, BASS_r, MzLS_z). 
+| In addition to these FSPS filters, we have included the Chinese Space Station Telescope (CSST) and the DESI filters (BASS_g, BASS_r, MzLS_z). 
 
 
-| 
+| If you need to use a filter that is not included in this list, it should be very easy to add it. In this case, we encourage you to open one of the filter files below to better understand their format. To add a new filter, you need to obtain its transmission curve, save it to a file with the appropriate format, and then add it to the pymgal/pymgal/filters directory. You should then be able to call it in the same way as any of the pre-installed filters.
 
 
 .. list-table::
