@@ -9,7 +9,9 @@ Usage
 The MockObservation object
 -------------
 
-In most cases, the only API needed for PyMGal is the MockObservation object. MockObservation objects require two mandatory parameters: the path to your snapshot file and the coordinates and radius of the region you want to consider. If you don't know the coordinates of your object, you'll probably need to obtain some catalogue data.
+In most cases, the only API needed for PyMGal is the MockObservation object. MockObservation objects require two mandatory parameters: the path to your snapshot data and the coordinates and radius of the region you want to consider. If you don't know the coordinates of your object, you'll probably need to obtain some catalogue data.
+
+When defining the path to your snapshot data, there are two options. If your simulation data is contained in a single file (e.g. snap_XYZ.hdf5), you can simply include the path to this file. If it is split between several snapshot files (e.g. snap_XYZ.0.hdf5, snap_XYZ.1.hdf5), you should specify the directory where these files are contained. If you do this, make sure to include every piece of the snapshot in the directory and no unrelated files. 
 
 Once you initialize the object, you can calculate magnitudes of particles in your preferred output unit using the get_mags() function. You can also save projection files using the project() function. If you call project() before calling get_mags(), the magnitudes will automatically be calculated.
 
@@ -43,8 +45,6 @@ There are many different parameters you can modify for your magnitude calculatio
                "out_val": "flux",
                "mag_type": "AB",
                "proj_vecs": "z",
-               "proj_angs": None,
-               "proj_rand": 0,
                "rest_frame": True,
                "AR": 1.2,
                "npx": 512,
@@ -70,71 +70,65 @@ This document describes the various parameters used in PyMGal for generating opt
 
 
 - **model**:  
-    The stellar population model you want to assume. PyMGal supports various types of models. For more details, see :ref:`SSP Models <ssp_models>`.
+    **Type: pymgal.SSP_model object.** The stellar population model you want to assume. PyMGal supports various types of models depending on your scientific goals. For more details, see :ref:`SSP Models <ssp_models>`.
 
 - **dustf**:  
-    The dust attenuation function used in the model. Options include no dust, "charlot_fall" (Charlot and Fall 2000), or "calzetti" (Calzetti et al. 2000). You can also define a custom function within the dusts.py file if needed.
+    **Type: pymgal.dusts object.** dustsThe dust attenuation function used in the model. Options include no dust, charlot_fall (Charlot and Fall 2000), or calzetti (Calzetti et al. 2000). You can also define a custom function within the dusts.py file if needed. 
 
 - **filters**:  
-    The telescope filters you want to mimic in your mock observations. For more details, see :ref:`Filters <filters>`
+    **Type: list.** The telescope filters you want to mimic in your mock observations. For more details, see :ref:`Filters <filters>`
 
 - **out_val**:  
-    The units for the output data. Options include `"luminosity`" (erg/s), `"Lsun`" (solar luminosities), `"flux"` (erg/s/cm^2), `"jy"` (Jansky), `"Fv"` (erg/s/cm^2/Hz), `"Fl"` (erg/s/cm^2/angstrom), or `"magnitude"`. This is case-insensitive.
+    **Type: string or None.** The units for the output data. Options include `"luminosity`" (erg/s), `"Lsun`" (solar luminosities), `"flux"` (erg/s/cm^2), `"jy"` (Jansky), `"Fv"` (erg/s/cm^2/Hz), `"Fl"` (erg/s/cm^2/angstrom), or `"magnitude"`. This is case-insensitive.
 
 - **mag_type**:  
-    If `out_val` is set to `"magnitude"`, this parameter specifies the magnitude type. Options are `"AB"`, `"vega"`, `"solar"`, `"AB_app"`, `"vega_app"`, or `"solar_app"`. If `out_val` is not `"magnitude"`, this parameter has no effect.
+    **Type: string.** If `out_val` is set to `"magnitude"`, this parameter specifies the magnitude type. Options are `"AB"`, `"vega"`, `"solar"`, `"AB_app"`, `"vega_app"`, or `"solar_app"`. If `out_val` is not `"magnitude"`, this parameter has no effect.
     
 - **proj_vecs**:  
-    A list of projection vectors. You can specify principal axes (i.e. "x", "y", or "z") or provide custom vectors in Cartesian coordinates [x, y, z].
-
-- **proj_angs**:  
-    A list of angles `[alpha, beta, gamma]` (in degrees) used to rotate around the x, y, and z axes, respectively. This serves the same purpose as `proj_vecs`, so you can use either or both.
-    
-- **proj_rand**:  
-    The number of random projections you want to generate. Setting this to `0`, along with `proj_vecs = null` and `proj_angles = null`, will cause an error.
+    **Type: list.** A list of projection vectors. You can specify principal axes (i.e. "x", "y", or "z") or provide custom vectors in Cartesian coordinates [x, y, z]. Example usage: ["x", "y", "z", [0, -1, 0]]
 
 - **rest_frame**:  
-    If set to `True`, the magnitudes will be computed in the rest frame. Otherwise, they will be in the observer's frame.
+    **Type: bool.** If set to `True`, the magnitudes will be computed in the rest frame. Otherwise, they will be in the observer's frame.
 
 - **AR**:  
-    The angular resolution in arcseconds. If set to `null`, it is automatically calculated. If both `AR` and `npx` are `"auto"`, `npx` defaults to 512.
+    **Type: float.** The angular resolution in arcseconds. If set to None, it is automatically calculated. If both `AR` and `npx` are `"auto"`, `npx` defaults to 512.
     
 - **npx**:  
-    The number of pixels in the output image. You can also set this to `"auto"`, which will automatically decide the pixel number to include all particles.
+    **Type: int.** The number of pixels in the output image. You can also set this to `"auto"`, which will automatically decide the pixel number to include all particles.
     
 - **z_obs**:  
-    The redshift of the observation from the observer's point of view. This parameter affects only the apparent distance, not age or evolution. If set to `null`, it defaults to `max(0.05, sim z)`.
+    **Type: float or None.** The redshift of the observation from the observer's point of view. This parameter affects only the apparent distance, not age or evolution. If set to None, it defaults to `max(0.05, sim z)`.
 
 - **ksmooth**:  
-    A smoothing parameter used in kNN Gaussian smoothing. The larger the `ksmooth` value, the smoother the results.
+    **Type: int.**  Must be non-negative. A smoothing parameter used in kNN Gaussian smoothing. The larger the `ksmooth` value, the smoother the results. Setting ksmooth=0 will turn the smoothing feature off. 
 
 - **g_soft**:  
-    The gravitational softening length of the simulation in comoving kpc/h. This limits smoothing for mass/age/metal maps. If set to `null`, mass/age/metal are smoothed similarly to light.
+    **Type: int or None.** The gravitational softening length of the simulation in comoving kpc/h. This limits smoothing for mass/age/metal maps. If set to None, mass/age/metal are smoothed similarly to light.
 
 - **p_thick**:  
-    The thickness cut (in kpc/h) along the projection direction. This cut is applied as `[center-p_thick, center+p_thick]`. If set to `null`, no cut is applied, and all data is used.
+    **Type: int.** The thickness cut (in kpc/h) along the projection direction. This cut is applied as `[center-p_thick, center+p_thick]`. If set to `null`, no cut is applied, and all data is used.
     
 - **add_spec**:  
-    Do you want to output the spectrum of your observation for your choice of axes? If set to True, the spectrum will be written to a fits file. 
+    **Type: bool.** Do you want to output the spectrum of your observation for your choice of axes? If set to True, the spectrum will be written to a fits file. 
     
 - **spec_res**:  
-    If you chose `add_spec = True`, you can modify the spectral resolution here. Accepted values: float: (0, 1], or an array in wavelength for sampling with unit of Hertz. If `add_spec = False`, this does nothing.
+    **Type float.** If you chose `add_spec = True`, you can modify the spectral resolution here. Accepted values: float: (0, 1], or an array in wavelength for sampling with unit of Hertz. If `add_spec = False`, this does nothing.
 
 - **ncpu**:  
-    The number of CPUs used in parallel processing.
+    **Type: int.** The number of CPUs used in parallel processing.
 
 - **noise**:  
-    The noise level of Gaussian noise for your observations in AB mag / arcsec^2, which will be converted to your choice of out_val
+    **Type: list or None.** The noise level of Gaussian noise for your observations as a limiting AB mag at some specified signal to noise ratio within some specified circular aperture. Format: [mag_lim, SNR, r_aperture].
 
 - **outmas**:  
-    If `True`, the mass map corresponding to your data will be output.
+    **Type: bool.** If `True`, the mass map corresponding to your data will be output.
 
 - **outage**:  
-    If `True`, the age map corresponding to your data will be output.
+    **Type: bool.** If `True`, the age map corresponding to your data will be output.
 
 - **outmet**:  
-    If `True`, the metallicity map corresponding to your data will be output.
+    **Type: bool.** If `True`, the metallicity map corresponding to your data will be output.
     
 - **quiet**:  
-    If `True`, the print statements displaying the code's progress will be silenced
+    **Type: bool.** If `True`, the print statements displaying the code's progress will be silenced
     
