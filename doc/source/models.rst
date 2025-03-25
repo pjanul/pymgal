@@ -7,9 +7,11 @@ Model selection
 The SSP_models object
 ----------
 
-If you want to change the stellar population model used by the program, you'll probably want to call the SSP_models object. 
+Since the stellar particles within hydrodynamical simulations represent simple stellar populations (SSPs), we can leverage stellar population synthesis (SPS) to infer the SEDs of the stellar particles within the simulation. SPS is a challenging task, and different works make different assumptions about the physics that they are modelling. However, all of them try to model the evolution of SEDs, which can be represented as two-dimensional arrays containing ages on one axis and wavelengths or frequencies on the other. These SEDs are also metallicty-dependent, so we need one array file for each metallicity. For a given star particle, PyMGal reads its age and metallicity and then assigns it a mass-scaled SED based off the provided model file. An illustration of this process can be found below.
 
-You can use any of PyMGal's available models, or you can specify your own by adding a .txt file and specifying is_ascii=True in the object initialization.
+
+
+You may change this stellar population model to best fit your research goals. Note that while the default model comes with its full metallicity range, this may not be true of every model. You're welcome to create your own model file if they aren't already provided. If you need to study the contents of the .model files in order to replicate them, it might be helpful to convert them to .fits first and then look at them that way. You may also add a .txt file and specify is_ascii=True in the object initialization.
 
 .. code-block:: python
 
