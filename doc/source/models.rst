@@ -2,16 +2,23 @@
 Model selection
 ==========
 
+Since the stellar particles within hydrodynamical simulations represent simple stellar populations (SSPs), we can leverage stellar population synthesis (SPS) to infer the SEDs of the stellar particles within the simulation. SPS is a challenging task, and different works make different assumptions about the physics that they are modelling. However, all of them try to model the evolution of SEDs, which can be represented as two-dimensional arrays containing ages on one axis and wavelengths or frequencies on the other. These SEDs are also metallicty-dependent, so we need one array file for each metallicity. For a given star particle, PyMGal reads its age and metallicity and then assigns it a mass-scaled SED based off the provided model file. An illustration of this process can be found below.
+
+.. image:: ../build/html/_static/model_visual.png
+   :alt: demo_image
+   :width: 100%
+   :align: center
+
+
 .. _ssp_models_object:
 
 The SSP_models object
 ----------
 
-Since the stellar particles within hydrodynamical simulations represent simple stellar populations (SSPs), we can leverage stellar population synthesis (SPS) to infer the SEDs of the stellar particles within the simulation. SPS is a challenging task, and different works make different assumptions about the physics that they are modelling. However, all of them try to model the evolution of SEDs, which can be represented as two-dimensional arrays containing ages on one axis and wavelengths or frequencies on the other. These SEDs are also metallicty-dependent, so we need one array file for each metallicity. For a given star particle, PyMGal reads its age and metallicity and then assigns it a mass-scaled SED based off the provided model file. An illustration of this process can be found below.
 
 
 
-You may change this stellar population model to best fit your research goals. Note that while the default model comes with its full metallicity range, this may not be true of every model. You're welcome to create your own model file if they aren't already provided. If you need to study the contents of the .model files in order to replicate them, it might be helpful to convert them to .fits first and then look at them that way. You may also add a .txt file and specify is_ascii=True in the object initialization.
+You may change this stellar population model to best fit your research goals. Note that while the default model comes with its full metallicity range, this may not be true of every model. If the model files you want are not already provided, you're welcome to create your own. If you need to study the contents of the .model files in order to replicate them, it might be helpful to convert them to .fits first and then look at them that way. Model files can also be read in .txt format by specifying is_ascii=True in the object initialization.
 
 .. code-block:: python
 
