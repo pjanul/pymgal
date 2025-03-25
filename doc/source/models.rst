@@ -58,7 +58,7 @@ For more details on these, consult the EzGal paper. If you'd like to download Ez
 
 
 .. list-table::
-   :widths: 10 15 10 10 10
+   :widths: 10 15 15 15 10
    :header-rows: 1
 
    * - Category
