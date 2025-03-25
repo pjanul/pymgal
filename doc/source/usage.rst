@@ -16,16 +16,18 @@ When defining the path to your snapshot data, there are two options. If your sim
 Once you initialize the object, you can generate projection files using the project() function. You may also optionally get the magnitudes of stellar particles with the get_mags() function, spectral energy distributions (SEDs) with the get_seds() function, or the physical properties (e.g. positions, masses, ages, metallcities) with the get_simdata() function. 
 Here is a sample to get you started. 
 
-```python
-from pymgal import MockObservation
+.. code-block:: python
 
-obs = MockObservation("/path/to/snapshot", [x_c, y_c, z_c, r])   
-obs.params["out_val"] = "luminosity"         # This is how you modify parameters
-obs.get_mags()                               # If you want to get the magnitudes of stellar particles in different filters
-obs.get_seds()                               # If you want to get the spectral energy distributions (SEDs) of stellar particles
-obs.get_simdata()                            # If you want to get the positions, masses, ages, and metallicities of stellar particles
-obs.project("/path/to/output")               # To generate and save the mock observation  
-```
+   from pymgal import MockObservation
+
+   obs = MockObservation("/path/to/snapshot", [x_c, y_c, z_c, r])   
+   obs.params["out_val"] = "luminosity"         # This is how you modify parameters
+   obs.get_mags()                               # If you want to get the magnitudes of stellar particles in different filters
+   obs.get_seds()                               # If you want to get the spectral energy distributions (SEDs) of stellar particles
+   obs.get_simdata()                            # If you want to get the positions, masses, ages, and metallicities of stellar particles
+   obs.project("/path/to/output")               # To generate and save the mock observation  
+
+
 
 Note that after the SEDs have been calculated, you can modify many of these parameters (e.g. obs.params["proj_vecs"] = "y") without needing to recalculate the SEDs. This can save compute time. Note that this only works for parameters that are not directly involved in calculating SEDs such as projection effects.
 
