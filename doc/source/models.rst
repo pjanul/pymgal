@@ -2,7 +2,7 @@
 Model selection
 ==========
 
-Since the stellar particles within hydrodynamical simulations represent simple stellar populations (SSPs), we can leverage stellar population synthesis (SPS) to infer the SEDs of the stellar particles within the simulation. SPS is a challenging task, and different works make different assumptions about the physics that they are modelling. However, all of them try to model the evolution of SEDs, which can be represented as two-dimensional arrays containing ages on one axis and wavelengths or frequencies on the other. These SEDs are also metallicty-dependent, so we need one array file for each metallicity. For a given star particle, PyMGal reads its age and metallicity and then assigns it a mass-scaled SED based off the provided model file. An illustration of this process can be found below.
+Since the stellar particles within hydrodynamical simulations represent simple stellar populations (SSPs), we can leverage stellar population synthesis (SPS) to infer the SEDs of the stellar particles within the simulation. There are many uncertainties associated with SPS, and different works make different assumptions about the physics that they are modelling. While the exact form of the SEDs will vary depending on the physical assumptions, all of them model the evolution of SEDs as two-dimensional arrays containing ages on one axis and wavelengths/frequencies on the other. These SEDs are also metallicty-dependent, so we need one array file for each metallicity. For a given star particle, PyMGal reads its age and metallicity and then assigns it a mass-scaled SED based off the provided model file. An illustration of this process can be found below.
 
 .. image:: ../build/html/_static/model_visual.png
    :alt: demo_image
@@ -51,40 +51,51 @@ The most important are the model_file and the initial mass function (IMF). If yo
 Available models
 ----------
 
-PyMGal supports various model types from different works. Below is a list of models that were created as a result of the EzGal package. They are BC03 from  Bruzual & Chalot (2003), M05 from Maraston (2005), CB07 from Charlot & Bruzual (2007), BaSTI from Percival et al. (2009), C09 from Conroy et al. (2009) and P2 for the PEGASE2 set from Fioc & Rocca-Volmerange (1997). 
+PyMGal supports various model types from different works. Below is a list of models that were created for the EzGal package. They are BC03 from  Bruzual & Chalot (2003), M05 from Maraston (2005), CB07 from Charlot & Bruzual (2007), BaSTI from Percival et al. (2009), C09 for the FSPS models from Conroy et al. (2009) and P2 for the PEGASE2 set from Fioc & Rocca-Volmerange (1997). 
 
-In addition to simple stellar population (SSP) models, complex stellar population models (CSP) with more complex star formation history are also supported. These can include exponentially decaying formation, constant formation, or a constant burst in formation.
 
-For more details on these, consult the EzGal paper. If you'd like to download EzGal models, you can access them here: http://www.baryons.org/ezgal/download.php. Make sure to cite the EzGal authors and model authors.
+For more details on these, consult the EzGal paper. If you'd like to download EzGal models, you can access them here: http://www.baryons.org/ezgal/download.php. Make sure to cite the EzGal authors and model authors. We include a table of all the EzGal libraries that are compatible with PyMGal, as well as their properties such as the number of ages, the number of metallicities, and the range of these metallicities. 
+
 
 .. list-table::
-   :widths: 10 15 10
+   :widths: 10 15 10 10 10
    :header-rows: 1
 
    * - Category
      - Available IMFs
-     - Available CSPs
-   * - P09
-     - Kroupa
-     - 
+     - Metallicity range (Z/Z_solar)
+     - No. metallicities 
+     - No. ages
    * - BC03
      - Chabrier, Salpeter
-     - Burst, constant, exponential
-   * - Binary ised BC03 
-     - Chabrier, Salpeter
-     - 
-   * - C09
-     - Chabrier, Kroupa, Salpeter
-     - Exponential
-   * - CB07
-     - Chabrier, Salpeter
-     - Burst, constant, exponential
+     - 0.005 - 2.5
+     - 6
+     - 221
    * - M05
      - Kroupa, Salpeter
-     - Exponential
+     - 0.05-3.5
+     - 5
+     - 68
+   * - CB07
+     - Chabrier, Salpeter
+     - 0.005 - 2.5
+     - 6
+     - 221
+   * - C09
+     - Chabrier, Kroupa, Salpeter
+     - 0.01 - 1.5
+     - 22
+     - 189
+   * - P09
+     - Kroupa
+     - 0.005 - 2.5
+     - 10
+     - 56
    * - P2
      - Salpeter
-     - 
+     - 0.005 - 5
+     - 7
+     - 69
 
 
  
