@@ -102,7 +102,7 @@ class MockObservation(object):
             "out_val": "flux",
             "mag_type": "AB",
             "proj_vecs": "z",
-            "rest_frame": True,
+            "rest_frame": False,
             "AR": 1.2,
             "npx": 512,
             "z_obs": None,
@@ -131,16 +131,17 @@ class MockObservation(object):
         self.sim_file = sim_file
         self.coords = coords
 
+        sample_sim_file = self.sim_file
         if os.path.isdir(self.sim_file):
-            self.sim_file = sorted(glob(os.path.join(self.sim_file,'*')))[0]
+            sample_sim_file = sorted(glob(os.path.join(self.sim_file,'*')))[0]
 
         # Remove .hdf5 if an hdf5 file and remove the .X if the snapshot is split into parts (eg snap_100.0.hdf5 -> snap_100)
-        self.snapname = os.path.basename(self.sim_file).replace('.hdf5', '') if ".hdf5" in os.path.basename(self.sim_file) else os.path.basename(self.sim_file)
+        self.snapname = os.path.basename(sample_sim_file).replace('.hdf5', '') if ".hdf5" in os.path.basename(sample_sim_file) else os.path.basename(sample_sim_file)
         self.snapname = re.sub(r'\.\d+$', '', self.snapname) if re.search(r'\.\d+$', self.snapname) else self.snapname
-        
         self.simd = load_data(self.sim_file, snapshot=True, read_gas=self.params["los_dust"], center=self.coords[:3], radius=self.coords[-1])
+
         if not self.params["quiet"]:
-            print("Snapshot file successfully read:", self.sim_file)
+            print("Snapshot data successfully read:", self.sim_file)
             if len(self.simd.S_pos) == 0:
                 raise ValueError("Found no stellar particles within the selected region. Now exiting PyMGal. Please try again with different coordinates and/or a larger radius.")
             
