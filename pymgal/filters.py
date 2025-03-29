@@ -296,6 +296,10 @@ class filters(object):
         
         vsn, sedn = sspmod.get_seds(simd, rest_frame=rest_frame, dust_func=dust_func)
         
+        # Convert SEDs back to Fv so we can output them later if out_spec=True. There is probably a more efficient way to do this, but this should work for now
+        sedn_fv =  sedn  / (4.0 * np.pi * simd.cosmology.luminosity_distance(redshift).to('cm').value**2)
+        sedn_fv = np.asarray(sedn_fv, dtype='<f8')
+        
         units=unit.lower() # case insensitive
         
         # If we want to get rid of the Hz dependence, convert to erg/s
@@ -309,6 +313,8 @@ class filters(object):
         vsn = np.asarray(vsn, dtype='<f8')
         sedn = np.asarray(sedn, dtype='<f8')
         interp = utils.numba_interp1d(vsn, sedn.T)
+        interp_fv = utils.numba_interp1d(vsn, sedn_fv.T)
+        
         #end_time = time.time()
         #print("filters_time: ", end_time - start_time)
         
@@ -371,10 +377,11 @@ class filters(object):
         
             else:
                 raise NameError('Units of %s are unrecognized!' % units)
+        
 
         if outspec_res is None: 
             self.spectrum['vs'] = vsn.reshape(1, vsn.size)
-            self.spectrum['sed'] = sedn.T  # Changed to [particle, wavelength] format, need to add noise here!! 
+            self.spectrum['sed'] = sedn_fv.T  # Changed to [particle, wavelength] format, need to add noise here!! 
         else:
             if isinstance(outspec_res, type(0.1)): 
                 new_vsn = np.arange(vsn.min(), vsn.max(), (vsn.max()-vsn.min())/vsn.size/outspec_res)
@@ -384,6 +391,6 @@ class filters(object):
                 raise ValueError("The input outspec_res can only accept float value between 0 and 1 and a numpy arrary in Hertz to cover the interested spectrum energy range.", outspec_res)
 
             self.spectrum['vs'] = new_vsn.reshape(1, new_vsn.size)
-            self.spectrum['sed'] = interp(new_vsn)  # Changed to [particle, wavelength] format, need to add noise here!! 
+            self.spectrum['sed'] = interp_fv(new_vsn)  # Changed to [particle, wavelength] format, need to add noise here!! 
 
         return mag
