@@ -420,12 +420,12 @@ class projection(object):
         
         if self.noise_dict is not None:  # noise for spectrum need to be added in the filters.py file
             for i in dt.keys():
-                mag_lim, snr, r_ap_px = self.noise_dict[i][0], self.noise_dict[i][1], self.noise_dict[i][2] / self.ar   # Recall that each noise array contains [mag_lim, SNR, r_ap], also convert r_ap from arcsec to pixels
+                mag_lim, snr, r_ap_px = self.noise_dict[i][0], self.noise_dict[i][1], self.noise_dict[i][2] / (self.ar *3600)   # Recall that each noise array contains [mag_lim, SNR, r_ap], also convert r_ap from arcsec to pixels
                 if mag_lim is None:      # Verify that mag_lim is not provided as None
                     continue
                 
                 if self.flux == "magnitude":
-                    lum_noise = 10**(noise_stdev/-2.5)
+                    lum_noise = 10**(mag_lim/-2.5)
                     lum_vals = 10**(self.outd[i]/-2.5)
                     lum_vals += np.random.normal(loc=0.0, scale= lum_noise / (snr * np.pi**0.5 * r_ap_px), size=self.outd[i].shape)  # sigma for noise = F / (SNR * sqrt(pi) * r_ap)
                     self.outd[i] = -2.5 * np.log10(lum_vals) 
