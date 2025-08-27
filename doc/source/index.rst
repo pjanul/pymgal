@@ -47,6 +47,7 @@ License
 
 This code is available under the MIT License.
 
-An accompanying paper is in the works for this repository. We will update this page with a citation once it is ready.
-PyMGal borrows a lot from EzGal (http://www.baryons.org/ezgal/), so please cite them if you use this package. 
+If you use PyMGal in your work, please cite the code paper found here: https://doi.org/10.1093/rasti/rzaf027. 
+
+PyMGal borrows a lot from EzGal (http://www.baryons.org/ezgal/), so please cite them as well if you use their methods.
 
